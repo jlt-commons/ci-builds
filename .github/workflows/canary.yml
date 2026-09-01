@@ -1,0 +1,91 @@
+name: canary
+
+# ---------------------------------------------------------------------------
+# Ask, once a day, whether jolt's newest release still builds the whole fleet.
+#
+# It calls fan-out with no version, so fan-out resolves jolt's latest release
+# itself. On a failure it opens an issue naming the version and the projects;
+# on a later pass it closes that issue again, so an open canary issue always
+# means "the fleet is broken against the newest jolt right now" rather than
+# "it broke once".
+#
+# Polling rather than being told: jolt lives in a different org, and burinc is
+# a read-only member there, so a release-triggered repository_dispatch from
+# jolt-lang/jolt is not ours to add. It would be the better signal and is worth
+# asking yogthos about. Until then a daily poll costs one ubuntu minute plus
+# whatever the five project builds cost, all free on public repositories.
+# ---------------------------------------------------------------------------
+
+on:
+  schedule:
+    # 15:10 UTC is 01:10 AEST, comfortably after a working day here and not on
+    # the hour, where GitHub's scheduler is most congested and most likely to
+    # delay a run.
+    - cron: "10 15 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  fleet:
+    uses: ./.github/workflows/fanout.yml
+    secrets: inherit
+
+  report:
+    needs: fleet
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mint an installation token
+        id: token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: jlt-commons
+          repositories: ci-builds
+
+      - name: Open, update or close the canary issue
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          FAILED: ${{ needs.fleet.outputs.failed }}
+          VERSION: ${{ needs.fleet.outputs.version }}
+          RESULT: ${{ needs.fleet.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          TITLE="canary: jolt breaks the fleet"
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+                      --search "$TITLE in:title" --limit 1 \
+                      --json number --jq '.[0].number // ""')
+
+          if [ "$RESULT" = "success" ]; then
+            if [ -n "$existing" ]; then
+              gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" \
+                --body "Recovered. All five projects build against jolt \`${VERSION}\`. [Run](${RUN_URL})"
+              gh issue close "$existing" --repo "$GITHUB_REPOSITORY"
+              echo "closed #$existing"
+            else
+              echo "green against jolt ${VERSION}, nothing to report"
+            fi
+            exit 0
+          fi
+
+          body=$(printf '%s\n' \
+            "jolt \`${VERSION}\` does not build the whole fleet." \
+            "" \
+            "**Affected:** ${FAILED:-see the run; fan-out itself failed}" \
+            "" \
+            "[Fan-out run](${RUN_URL}) has the per-project table and links to each build." \
+            "" \
+            "This issue closes itself once a later canary passes. Reproduce a single" \
+            "project by dispatching its own ci.yml with the \`jolt-version\` input.")
+
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"
+            echo "commented on #$existing"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body "$body"
+          fi

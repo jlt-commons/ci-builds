@@ -1,0 +1,122 @@
+# ci-builds
+
+Fleet CI for [jlt-commons](https://github.com/jlt-commons): build every project
+against one jolt version and report the result in a single table.
+
+## Why
+
+Each project pins the jolt it builds against. When a new jolt ships, the
+question worth answering is not "does my project still build" but "does
+anything in the fleet break", and answering it one repository at a time is how
+you find out days late.
+
+jolt v0.8.0 is the case that prompted this. It published on 2026-09-01 and
+reversed `jolt.ffi/write`'s last two arguments
+([jolt-lang/jolt#802](https://github.com/jolt-lang/jolt/pull/802)). Both
+spellings are plain integers, so an older or newer runtime than the code
+expects writes to the wrong address and reports nothing. Two projects were
+floating to `latest` at the time and silently moved onto it.
+
+## What it does
+
+`fan-out` does not build anything itself. Every project's own `ci.yml` already
+knows how to build it, and each accepts a `jolt-version` dispatch input that
+overrides its pinned `JOLT_VERSION` for a single run. So `fan-out` dispatches
+those five workflows, waits, and renders the answers:
+
+```
+## jolt `0.8.0` across jlt-commons
+
+| project         | result | run    |
+|-----------------|--------|--------|
+| `glitter`       | pass   | [run]  |
+| `glitter-gl`    | pass   | [run]  |
+| `glitter-uikit` | pass   | [run]  |
+| `raygui-jlt`    | pass   | [run]  |
+| `raylib-jlt`    | pass   | [run]  |
+
+All 5 projects build against jolt `0.8.0`.
+```
+
+Reusing each project's real gate matters. `raygui-jlt` needs raylib natives,
+`glitter-uikit` needs AppKit and GTK4, `glitter-gl` needs a GL context under
+Xvfb. A central rebuild of all that would rot, and would test something other
+than what a contributor hits.
+
+`canary` runs `fan-out` daily against jolt's newest release and opens an issue
+when the fleet breaks, closing it again when a later run passes. So an open
+canary issue means "broken right now", not "broke once".
+
+## Using it
+
+**Try a candidate jolt across everything.** Actions → fan-out → Run workflow,
+and give it a version (blank means jolt's latest release). Nothing is
+committed anywhere; each project builds at its own HEAD with the version you
+named.
+
+**Try one project.** Dispatch that project's own `ci.yml` with the
+`jolt-version` input. Same mechanism, one repository.
+
+**Adopt a new jolt.** Run `fan-out` against it, then, when green, move each
+project's `JOLT_VERSION` pin in one reviewed commit per repository. Moving a
+pin IS the cutover commit for a breaking jolt change, which is the point of
+pinning rather than floating.
+
+## The pin convention
+
+Every project carries a workflow-level pin:
+
+```yaml
+env:
+  JOLT_VERSION: ${{ inputs.jolt-version || '0.8.0' }}
+```
+
+A floating `latest` lets a release published overnight turn CI red on a tree
+nobody touched, which is the same reason clj-kondo, clojure-lsp and babashka
+are pinned in those workflows.
+
+Note what `:jolt/min-version` in a project's `deps.edn` does **not** do. jolt
+honours that key only from
+[#804](https://github.com/jolt-lang/jolt/pull/804), which is the direct child
+of #802, so every runtime old enough to have the old `ffi/write` order is also
+too old to read the key and ignores it. Measured against the released v0.7.29
+with a `0.8.0` floor present: it ran rather than refusing, dropped two test
+namespaces, and still reported zero failures on half the suite. The pin here is
+what actually selects the runtime; the floor is for the next break, and to
+state the requirement for consumers. See
+[jolt-lang/jolt#811](https://github.com/jolt-lang/jolt/issues/811).
+
+## Authentication
+
+Runs authenticate as the **jlt-commons-ci** GitHub App, not a personal access
+token. The App is owned by the organization, mints a token that lives one hour
+and reaches exactly six repositories, and is what lets someone trigger a fleet
+build without borrowing another person's identity. A PAT would attribute every
+dispatched run to whoever created it and would die with their access.
+
+`APP_ID` and `APP_PRIVATE_KEY` are repository secrets here. Repository rather
+than organization secrets because this is a free organization, where org
+secrets cover public repositories only, and because the credential's blast
+radius should be the one repository that needs it.
+
+## Adding a project
+
+1. Give it a `workflow_dispatch` input named `jolt-version` and a
+   workflow-level `JOLT_VERSION` pin that reads it.
+2. Add the repository to the jlt-commons-ci App installation.
+3. Add its name to `PROJECTS` in `.github/workflows/fanout.yml`.
+
+## Known gaps
+
+- **The canary polls rather than being told.** A `repository_dispatch` from
+  `jolt-lang/jolt` on release would be the better signal, but jolt is a
+  different organization where we are read-only, so that change is not ours to
+  make. Worth asking about.
+- **`glitter-gl` has a shim a single pin cannot fully exercise.**
+  `glitter-gl.ffi-compat` resolves `ffi/write`'s argument order at load and has
+  two branches; a run pinned to one jolt only ever takes one of them. A
+  two-entry matrix over an old and a new jolt would cover both.
+- **`PROJECTS` is a hardcoded list**, so a new repository is invisible until
+  someone edits the workflow. Deliberate for now: discovery by topic or by
+  listing the App's installation would be quieter but would also silently
+  change what the canary covers.

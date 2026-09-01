@@ -1,0 +1,211 @@
+name: fan-out
+
+# ---------------------------------------------------------------------------
+# Build every jlt-commons project against one jolt version, and report the
+# whole fleet in a single table.
+#
+# It does NOT rebuild anything itself. Each project's own ci.yml already knows
+# how to build it (raygui needs raylib natives, glitter-uikit needs AppKit and
+# GTK4, glitter-gl needs a GL context under Xvfb), and every one of them
+# accepts a `jolt-version` dispatch input that overrides its pinned
+# JOLT_VERSION for a single run. So this workflow dispatches those and collects
+# the answers. Reimplementing five build environments here would rot, and would
+# test something other than what a contributor actually hits.
+#
+# Auth is the jlt-commons-ci GitHub App rather than a PAT, so a run is
+# attributed to the App and not to whoever pressed the button, and the token it
+# mints lives for an hour and reaches exactly six repositories.
+#
+# Why this exists: jolt v0.8.0 published 2026-09-01 and reversed
+# jolt.ffi/write's last two arguments (jolt-lang/jolt#802). Both spellings are
+# plain integers, so a mismatch writes to the wrong address and reports
+# nothing. Finding that out one repository at a time, days apart, is the thing
+# this workflow is meant to replace.
+# ---------------------------------------------------------------------------
+
+on:
+  workflow_dispatch:
+    inputs:
+      jolt-version:
+        description: "jolt version to test every project against (blank = jolt's latest release)"
+        required: false
+        default: ""
+  workflow_call:
+    inputs:
+      jolt-version:
+        type: string
+        required: false
+        default: ""
+    outputs:
+      failed:
+        description: "Space-separated projects that did not pass"
+        value: ${{ jobs.fanout.outputs.failed }}
+      version:
+        description: "The jolt version actually tested"
+        value: ${{ jobs.fanout.outputs.version }}
+
+permissions:
+  contents: read
+
+jobs:
+  fanout:
+    name: fan-out
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    outputs:
+      failed: ${{ steps.run.outputs.failed }}
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      # Mints a token scoped to the App's six repositories, valid one hour.
+      # Never a PAT: a PAT would act as whoever created it, and any collaborator
+      # able to run this workflow would be borrowing that identity.
+      - name: Mint an installation token
+        id: token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: jlt-commons
+
+      - name: Resolve the jolt version
+        id: version
+        env:
+          REQUESTED: ${{ inputs.jolt-version }}
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          set -euo pipefail
+          if [ -n "$REQUESTED" ]; then
+            version="$REQUESTED"
+            echo "Using the requested jolt $version"
+          else
+            # The App cannot read jolt-lang (a different org), but the release
+            # list is public, so an unauthenticated read is both sufficient and
+            # correct here.
+            version="$(curl -fsSL https://api.github.com/repos/jolt-lang/jolt/releases/latest \
+                       | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -1)"
+            version="${version#v}"
+            [ -n "$version" ] || { echo "could not resolve jolt's latest release" >&2; exit 1; }
+            echo "Using jolt's latest release, $version"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch every project and wait
+        id: run
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -uo pipefail
+          PROJECTS="glitter glitter-gl glitter-uikit raygui-jlt raylib-jlt"
+          declare -A BASE RUN CONC URL
+
+          # Each project's ci.yml has no input we can tag a run with, so a
+          # dispatched run cannot be identified directly. Record the newest
+          # dispatch-triggered run id per project FIRST, then treat the first
+          # id above that baseline as ours. Filtering both queries by
+          # `--event workflow_dispatch` keeps the comparison like-for-like;
+          # a push landing mid-run would otherwise be mistaken for our run.
+          echo "::group::baseline"
+          for p in $PROJECTS; do
+            BASE[$p]=$(gh run list --repo "jlt-commons/$p" --workflow ci.yml \
+                        --event workflow_dispatch --limit 1 \
+                        --json databaseId --jq '.[0].databaseId // 0' 2>/dev/null || echo 0)
+            echo "  $p: newest dispatch run ${BASE[$p]}"
+          done
+          echo "::endgroup::"
+
+          echo "::group::dispatch jolt $VERSION"
+          for p in $PROJECTS; do
+            if gh workflow run ci.yml --repo "jlt-commons/$p" -f jolt-version="$VERSION" 2>&1; then
+              echo "  dispatched $p"
+            else
+              echo "  FAILED to dispatch $p"
+              CONC[$p]="dispatch-failed"
+            fi
+          done
+          echo "::endgroup::"
+
+          echo "::group::identify runs"
+          sleep 10
+          for _ in $(seq 1 40); do
+            waiting=0
+            for p in $PROJECTS; do
+              [ -n "${RUN[$p]:-}" ] && continue
+              [ -n "${CONC[$p]:-}" ] && continue
+              id=$(gh run list --repo "jlt-commons/$p" --workflow ci.yml \
+                    --event workflow_dispatch --limit 1 \
+                    --json databaseId --jq '.[0].databaseId // 0' 2>/dev/null || echo 0)
+              if [ "$id" != "0" ] && [ "$id" -gt "${BASE[$p]}" ]; then
+                RUN[$p]=$id
+                URL[$p]="https://github.com/jlt-commons/$p/actions/runs/$id"
+                echo "  $p -> run $id"
+              else
+                waiting=1
+              fi
+            done
+            [ "$waiting" = "0" ] && break
+            sleep 5
+          done
+          for p in $PROJECTS; do
+            if [ -z "${RUN[$p]:-}" ] && [ -z "${CONC[$p]:-}" ]; then
+              CONC[$p]="no-run-appeared"
+              echo "  $p: no run appeared within the window"
+            fi
+          done
+          echo "::endgroup::"
+
+          echo "::group::wait for completion"
+          for _ in $(seq 1 150); do
+            waiting=0
+            for p in $PROJECTS; do
+              [ -n "${CONC[$p]:-}" ] && continue
+              read -r st cc < <(gh run view "${RUN[$p]}" --repo "jlt-commons/$p" \
+                                 --json status,conclusion \
+                                 --jq '"\(.status) \(.conclusion // "-")"' 2>/dev/null || echo "unknown -")
+              if [ "$st" = "completed" ]; then
+                CONC[$p]="$cc"
+                echo "  $p: $cc"
+              else
+                waiting=1
+              fi
+            done
+            [ "$waiting" = "0" ] && break
+            sleep 20
+          done
+          for p in $PROJECTS; do
+            [ -z "${CONC[$p]:-}" ] && CONC[$p]="timed-out"
+          done
+          echo "::endgroup::"
+
+          # Render the table this workflow exists to produce.
+          failed=""
+          {
+            echo "## jolt \`$VERSION\` across jlt-commons"
+            echo
+            echo "| project | result | run |"
+            echo "|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+          for p in $PROJECTS; do
+            c="${CONC[$p]}"
+            case "$c" in
+              success)   icon="pass" ;;
+              skipped)   icon="skipped" ;;
+              *)         icon="**FAIL** ($c)"; failed="$failed $p" ;;
+            esac
+            link="-"
+            [ -n "${URL[$p]:-}" ] && link="[run](${URL[$p]})"
+            echo "| \`$p\` | $icon | $link |" >> "$GITHUB_STEP_SUMMARY"
+          done
+          failed="${failed# }"
+          {
+            echo
+            if [ -z "$failed" ]; then
+              echo "All 5 projects build against jolt \`$VERSION\`."
+            else
+              echo "**Broken by jolt \`$VERSION\`:** $failed"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "failed=$failed" >> "$GITHUB_OUTPUT"
+          [ -z "$failed" ] || { echo "failing: $failed" >&2; exit 1; }
