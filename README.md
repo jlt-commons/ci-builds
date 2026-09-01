@@ -99,6 +99,30 @@ than organization secrets because this is a free organization, where org
 secrets cover public repositories only, and because the credential's blast
 radius should be the one repository that needs it.
 
+## Setting the App up again
+
+`scripts/setup-app.sh` walks the whole thing: create the App, set its
+permissions, install it, store the credentials in `pass`, create this
+repository, and set its secrets. It is the script that actually created the
+current setup, corrected afterwards for two things it got wrong the first time.
+
+```
+bash scripts/setup-app.sh
+```
+
+It is idempotent enough to re-run: stage 1 asks whether the App already exists
+and skips creation if so, and stage 5 detects this repository and moves on. You
+would need it to rotate the private key, to rebuild the App after an uninstall,
+or to set the same thing up for another organization.
+
+Two things it records that are easy to get wrong:
+
+- The workflows authenticate with the App's **Client ID**, not its App ID.
+  `create-github-app-token@v3` deprecates the `app-id` input, so a setup that
+  only captures the App ID produces credentials the workflows cannot use.
+- `pass` **auto-commits** every entry it writes but never pushes. The
+  credentials are not backed up until `git -C ~/dev/b12n-pass push`.
+
 ## Adding a project
 
 1. Give it a `workflow_dispatch` input named `jolt-version` and a
