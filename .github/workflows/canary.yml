@@ -22,7 +22,12 @@ on:
     # the hour, where GitHub's scheduler is most congested and most likely to
     # delay a run.
     - cron: "10 15 * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      jolt-version:
+        description: "jolt version to test (blank = jolt's latest release, which is what the schedule uses)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -31,6 +36,12 @@ permissions:
 jobs:
   fleet:
     uses: ./.github/workflows/fanout.yml
+    # Blank on a schedule, so the nightly run always asks about jolt's newest
+    # release. The input exists so the red path (open an issue) can be
+    # rehearsed on demand against a version known to break, rather than first
+    # running for real at 01:10 with nobody watching.
+    with:
+      jolt-version: ${{ inputs.jolt-version }}
     secrets: inherit
 
   report:
