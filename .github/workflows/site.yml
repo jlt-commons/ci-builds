@@ -1,0 +1,95 @@
+name: site
+
+# ---------------------------------------------------------------------------
+# The shared half of every jlt-commons project's documentation build: check out
+# the repo and the docs-engine, build, verify, upload, and deploy to Pages from
+# main. Called by each project's own .github/workflows/site.yml.
+#
+# WHAT STAYS IN THE PROJECT, and why this is not a full extraction. The five
+# site.yml files were identical for 72 lines apiece, differing only in
+# BASE_PATH and one comment. Their "Check the build" steps were NOT: 45 to 54
+# lines each, asserting on page names that exist in that project
+# (architecture.html, limitations.html), counting that project's own asset
+# directory, grepping for its own name. Folding those into one shared block
+# would have quietly deleted real assertions.
+#
+# So each project keeps its checks as docs/check-site.sh, run below against the
+# built output with BASE_PATH exported. A project without that file still
+# builds; it just asserts nothing beyond the engine's own exit code.
+#
+# The deploy CANNOT move out of the calling repo, whatever we do here: a Pages
+# site belongs to the repository that owns it, and the token minted for a
+# deployment is scoped to the caller. That is why this is a reusable workflow
+# rather than something ci-builds runs centrally.
+# ---------------------------------------------------------------------------
+
+on:
+  workflow_call:
+    inputs:
+      base-path:
+        description: "URL prefix the site is served under, e.g. /glitter-uikit"
+        type: string
+        required: true
+      docs-engine-ref:
+        description: "Tag of jlt-commons/docs-engine to build with"
+        type: string
+        required: false
+        default: v0.2.0
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Pinned to a tag rather than the engine's main branch, so a change over
+      # there cannot break a project's docs without someone choosing it.
+      - name: Check out the docs engine
+        uses: actions/checkout@v7
+        with:
+          repository: jlt-commons/docs-engine
+          ref: ${{ inputs.docs-engine-ref }}
+          path: .docs-engine
+
+      - name: Install babashka
+        uses: DeLaGuardo/setup-clojure@13.6.1
+        with:
+          bb: latest
+
+      - name: Build
+        working-directory: .docs-engine
+        run: bb build "$GITHUB_WORKSPACE"
+
+      # The project's own assertions. Each one names a symptom a reader would
+      # otherwise have to diagnose from a rendered page, so a project that has
+      # them should not be able to publish without them passing.
+      - name: Check the build
+        env:
+          BASE_PATH: ${{ inputs.base-path }}
+        run: |
+          set -euo pipefail
+          if [ ! -f docs/check-site.sh ]; then
+            echo "::warning::no docs/check-site.sh, publishing without project checks"
+            exit 0
+          fi
+          bash docs/check-site.sh
+
+      - name: Upload the Pages artifact
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
