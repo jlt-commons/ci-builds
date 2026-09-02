@@ -39,9 +39,10 @@ on:
     outputs:
       failed:
         description: "Space-separated projects that did not pass"
+        value: ${{ jobs.fanout.outputs.failed }}
       infra:
         description: "Space-separated projects whose jolt could not be installed at all"
-        value: ${{ jobs.fanout.outputs.failed }}
+        value: ${{ jobs.fanout.outputs.infra }}
       version:
         description: "The jolt version actually tested"
         value: ${{ jobs.fanout.outputs.version }}
