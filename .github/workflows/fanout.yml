@@ -98,27 +98,48 @@ jobs:
         run: |
           set -uo pipefail
           PROJECTS="glitter glitter-gl glitter-uikit raygui-jlt raylib-jlt"
-          declare -A BASE RUN CONC URL
+          declare -A RUN CONC URL
+          # A plain string, not an associative array: `${#arr[@]}` and
+          # `${!arr[@]}` on an EMPTY associative array are only safe under
+          # `set -u` from bash 4.4, and the empty case is the normal one here.
+          # A string list behaves the same on every bash and is testable locally.
+          NEEDID=""
 
-          # Each project's ci.yml has no input we can tag a run with, so a
-          # dispatched run cannot be identified directly. Record the newest
-          # dispatch-triggered run id per project FIRST, then treat the first
-          # id above that baseline as ours. Filtering both queries by
-          # `--event workflow_dispatch` keeps the comparison like-for-like;
-          # a push landing mid-run would otherwise be mistaken for our run.
-          echo "::group::baseline"
-          for p in $PROJECTS; do
-            BASE[$p]=$(gh run list --repo "jlt-commons/$p" --workflow ci.yml \
-                        --event workflow_dispatch --limit 1 \
-                        --json databaseId --jq '.[0].databaseId // 0' 2>/dev/null || echo 0)
-            echo "  $p: newest dispatch run ${BASE[$p]}"
-          done
-          echo "::endgroup::"
-
+          # `gh workflow run` prints the URL of the run it created, so READ THAT
+          # rather than guessing. The guess this replaced was "the newest
+          # workflow_dispatch run above a baseline recorded before dispatching",
+          # which is a positive control: it always returns a plausible id, and
+          # nothing in the output describes the gap between that id and the run
+          # you meant.
+          #
+          # It was not merely theoretical. Canary run 33682325150 ran two fan-out
+          # legs at once, 0.8.0 and 0.8.1, and BOTH claimed glitter run
+          # 33682354193. gh had printed 33682349678 to the 0.8.1 leg and
+          # 33682354193 to the 0.8.0 leg, and gh was right both times:
+          # ...9678 installed v0.8.1 and ...4193 installed v0.8.0. So the 0.8.1
+          # row reported a result for a build of 0.8.0. Both were green, which is
+          # the only reason the wrong answer was harmless that day.
+          #
+          # Reading gh's own output removes the guess instead of narrowing it, and
+          # it holds however many fan-outs run at once: a manual dispatch during
+          # the nightly canary, three matrix legs, anything.
           echo "::group::dispatch jolt $VERSION"
           for p in $PROJECTS; do
-            if gh workflow run ci.yml --repo "jlt-commons/$p" -f jolt-version="$VERSION" 2>&1; then
-              echo "  dispatched $p"
+            if out=$(gh workflow run ci.yml --repo "jlt-commons/$p" -f jolt-version="$VERSION" 2>&1); then
+              printf '%s\n' "$out" | sed 's/^/    /'
+              id=$(printf '%s' "$out" | sed -n 's#.*/actions/runs/\([0-9][0-9]*\).*#\1#p' | head -1)
+              if [ -n "$id" ]; then
+                RUN[$p]=$id
+                URL[$p]="https://github.com/jlt-commons/$p/actions/runs/$id"
+                echo "  dispatched $p -> run $id"
+              else
+                # An older gh prints no URL. Rather than silently fall back to the
+                # heuristic this replaced, say so: the result is still produced,
+                # and a human is told the attribution is a guess.
+                NEEDID="$NEEDID $p"
+                echo "::warning::gh printed no run URL for $p, falling back to newest-run matching. That is unreliable when fan-outs overlap."
+                echo "  dispatched $p, run id unknown"
+              fi
             else
               echo "  FAILED to dispatch $p"
               CONC[$p]="dispatch-failed"
@@ -126,34 +147,37 @@ jobs:
           done
           echo "::endgroup::"
 
-          echo "::group::identify runs"
-          sleep 10
-          for _ in $(seq 1 40); do
-            waiting=0
-            for p in $PROJECTS; do
-              [ -n "${RUN[$p]:-}" ] && continue
-              [ -n "${CONC[$p]:-}" ] && continue
-              id=$(gh run list --repo "jlt-commons/$p" --workflow ci.yml \
-                    --event workflow_dispatch --limit 1 \
-                    --json databaseId --jq '.[0].databaseId // 0' 2>/dev/null || echo 0)
-              if [ "$id" != "0" ] && [ "$id" -gt "${BASE[$p]}" ]; then
-                RUN[$p]=$id
-                URL[$p]="https://github.com/jlt-commons/$p/actions/runs/$id"
-                echo "  $p -> run $id"
-              else
-                waiting=1
+          # Only for projects whose id gh did not give us.
+          if [ -n "$NEEDID" ]; then
+            echo "::group::identify runs (fallback)"
+            sleep 10
+            for _ in $(seq 1 40); do
+              waiting=0
+              for p in $NEEDID; do
+                [ -n "${RUN[$p]:-}" ] && continue
+                [ -n "${CONC[$p]:-}" ] && continue
+                id=$(gh run list --repo "jlt-commons/$p" --workflow ci.yml \
+                      --event workflow_dispatch --limit 1 \
+                      --json databaseId --jq '.[0].databaseId // 0' 2>/dev/null || echo 0)
+                if [ "$id" != "0" ]; then
+                  RUN[$p]=$id
+                  URL[$p]="https://github.com/jlt-commons/$p/actions/runs/$id"
+                  echo "  $p -> run $id (guessed)"
+                else
+                  waiting=1
+                fi
+              done
+              [ "$waiting" = "0" ] && break
+              sleep 5
+            done
+            for p in $NEEDID; do
+              if [ -z "${RUN[$p]:-}" ] && [ -z "${CONC[$p]:-}" ]; then
+                CONC[$p]="no-run-appeared"
+                echo "  $p: no run appeared within the window"
               fi
             done
-            [ "$waiting" = "0" ] && break
-            sleep 5
-          done
-          for p in $PROJECTS; do
-            if [ -z "${RUN[$p]:-}" ] && [ -z "${CONC[$p]:-}" ]; then
-              CONC[$p]="no-run-appeared"
-              echo "  $p: no run appeared within the window"
-            fi
-          done
-          echo "::endgroup::"
+            echo "::endgroup::"
+          fi
 
           echo "::group::wait for completion"
           for _ in $(seq 1 150); do
