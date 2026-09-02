@@ -1,52 +1,186 @@
 name: canary
 
 # ---------------------------------------------------------------------------
-# Ask, once a day, whether jolt's newest release still builds the whole fleet.
+# Ask, on a schedule, whether the jolt versions this fleet cares about still
+# build every project. Two of them:
 #
-# It calls fan-out with no version, so fan-out resolves jolt's latest release
-# itself. On a failure it opens an issue naming the version and the projects;
-# on a later pass it closes that issue again, so an open canary issue always
-# means "the fleet is broken against the newest jolt right now" rather than
-# "it broke once".
+#   pinned   what the projects actually pin today (vars.JOLT_PIN, default 0.8.0)
+#   latest   jolt's newest published release
 #
-# Polling rather than being told: jolt lives in a different org, and burinc is
-# a read-only member there, so a release-triggered repository_dispatch from
-# jolt-lang/jolt is not ours to add. It would be the better signal and is worth
-# asking yogthos about. Until then a daily poll costs one ubuntu minute plus
-# whatever the five project builds cost, all free on public repositories.
+# Identical while the fleet is up to date, and the run collapses to one build
+# when they are. They diverge the moment jolt ships a release nobody has adopted
+# yet, which is precisely the window this is meant to cover.
+#
+# RELEASES ONLY, deliberately. jolt's install script takes --version and
+# resolves it to releases/download/v<x>/..., so an unreleased commit cannot be
+# installed at all, and jolt publishes no prereleases or nightlies. Testing
+# jolt's main HEAD would mean building it from source against Chez on two
+# operating systems and reworking all five projects to accept a prebuilt
+# binary. If jolt ever publishes a rolling `dev` release, add it to the matrix
+# below and this file is the only thing that changes.
+#
+# TWO GATES, so an hourly tick is cheap:
+#
+#   interval  vars.CANARY_INTERVAL_HOURS (default 1). The cron itself cannot be
+#             a variable, GitHub requires a literal, so the schedule ticks
+#             hourly and this decides whether a tick does anything.
+#   change    a run is skipped when this exact version set has already been
+#             tested green. Keyed in the Actions cache, so no extra permissions
+#             and nothing to commit back to the repository.
+#
+# A manual dispatch ignores both gates. That is the point of a manual dispatch.
 # ---------------------------------------------------------------------------
 
 on:
   schedule:
-    # 15:10 UTC is 01:10 AEST, comfortably after a working day here and not on
-    # the hour, where GitHub's scheduler is most congested and most likely to
-    # delay a run.
-    - cron: "10 15 * * *"
+    # Hourly, at 7 past. Not on the hour, where GitHub's scheduler is most
+    # congested and most likely to delay or drop a run.
+    - cron: "7 * * * *"
   workflow_dispatch:
     inputs:
       jolt-version:
-        description: "jolt version to test (blank = jolt's latest release, which is what the schedule uses)"
+        description: "Test only this version (blank = the pinned + latest pair)"
         required: false
         default: ""
 
 permissions:
   contents: read
   issues: write
+  actions: read
 
 jobs:
+  plan:
+    name: plan
+    runs-on: ubuntu-latest
+    outputs:
+      versions: ${{ steps.decide.outputs.versions }}
+      proceed: ${{ steps.final.outputs.proceed }}
+      reason: ${{ steps.decide.outputs.reason }}
+      key: ${{ steps.decide.outputs.key }}
+    steps:
+      - name: Work out what to test, and whether to bother
+        id: decide
+        env:
+          REQUESTED: ${{ inputs.jolt-version }}
+          PIN: ${{ vars.JOLT_PIN }}
+          INTERVAL_HOURS: ${{ vars.CANARY_INTERVAL_HOURS }}
+          EVENT: ${{ github.event_name }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          pin="${PIN:-0.8.0}"
+          interval="${INTERVAL_HOURS:-1}"
+
+          if [ -n "$REQUESTED" ]; then
+            versions="[\"$REQUESTED\"]"
+            echo "manual dispatch, testing $REQUESTED only"
+          else
+            latest="$(curl -fsSL https://api.github.com/repos/jolt-lang/jolt/releases/latest \
+                      | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -1)"
+            latest="${latest#v}"
+            [ -n "$latest" ] || { echo "could not resolve jolt's latest release" >&2; exit 1; }
+            if [ "$latest" = "$pin" ]; then
+              versions="[\"$pin\"]"
+              echo "pinned and latest are both $pin, one build"
+            else
+              versions="[\"$pin\",\"$latest\"]"
+              echo "pinned $pin, latest $latest, two builds"
+            fi
+          fi
+          echo "versions=$versions" >> "$GITHUB_OUTPUT"
+
+          # The cache key IS the change detector. A new jolt release changes the
+          # version set, which changes the key, which misses the cache.
+          key="canary-green-$(printf '%s' "$versions" | tr -d '[]" ' | tr ',' '-')"
+          echo "key=$key" >> "$GITHUB_OUTPUT"
+
+          if [ "$EVENT" != "schedule" ]; then
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+            echo "reason=manual run, gates skipped" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Interval gate, measured from the last canary that actually BUILT
+          # something, not the last tick.
+          #
+          # A gated tick still finishes as a run whose conclusion is "success"
+          # (plan succeeded, everything downstream skipped), so counting runs
+          # would reset the clock every hour and an interval above 1 would never
+          # come due. The tell is whether a run has any `jolt <version>` job:
+          # those exist only when the matrix actually ran.
+          last=""
+          for id in $(gh run list --repo "$GITHUB_REPOSITORY" --workflow canary.yml \
+                        --status completed --limit 12 --json databaseId \
+                        --jq '.[].databaseId' 2>/dev/null); do
+            if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs" \
+                 --jq '.jobs[].name' 2>/dev/null | grep -q '^jolt '; then
+              last="$(gh run view "$id" --repo "$GITHUB_REPOSITORY" \
+                       --json updatedAt --jq .updatedAt 2>/dev/null || true)"
+              break
+            fi
+          done
+          if [ -n "$last" ]; then
+            age=$(( ( $(date -u +%s) - $(date -u -d "$last" +%s 2>/dev/null || echo 0) ) / 3600 ))
+            if [ "$age" -lt "$interval" ]; then
+              echo "proceed=false" >> "$GITHUB_OUTPUT"
+              echo "reason=last run was ${age}h ago, interval is ${interval}h" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          echo "proceed=true" >> "$GITHUB_OUTPUT"
+          echo "reason=due" >> "$GITHUB_OUTPUT"
+
+      # Change gate. A hit means this exact version set already passed, so
+      # nothing about jolt has moved and there is nothing to learn.
+      - name: Have we already passed this version set?
+        id: seen
+        if: steps.decide.outputs.proceed == 'true' && github.event_name == 'schedule'
+        uses: actions/cache/restore@v4
+        with:
+          path: .canary-state
+          key: ${{ steps.decide.outputs.key }}
+          lookup-only: true
+
+      # Both gates land here. A step cannot rewrite an earlier step's output,
+      # so the job's `proceed` reads THIS step and not `decide`, which knows
+      # only about the interval.
+      - name: Final decision
+        id: final
+        env:
+          INTERVAL_OK: ${{ steps.decide.outputs.proceed }}
+          ALREADY_GREEN: ${{ steps.seen.outputs.cache-hit }}
+          REASON: ${{ steps.decide.outputs.reason }}
+          KEY: ${{ steps.decide.outputs.key }}
+        run: |
+          set -euo pipefail
+          if [ "$INTERVAL_OK" != "true" ]; then
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            echo "SKIPPING: $REASON"
+          elif [ "$ALREADY_GREEN" = "true" ]; then
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            echo "SKIPPING: $KEY already passed, so jolt has not moved"
+          else
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+            echo "RUNNING: $REASON"
+          fi
+
   fleet:
+    name: jolt ${{ matrix.version }}
+    needs: plan
+    if: needs.plan.outputs.proceed == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ${{ fromJSON(needs.plan.outputs.versions) }}
     uses: ./.github/workflows/fanout.yml
-    # Blank on a schedule, so the nightly run always asks about jolt's newest
-    # release. The input exists so the red path (open an issue) can be
-    # rehearsed on demand against a version known to break, rather than first
-    # running for real at 01:10 with nobody watching.
     with:
-      jolt-version: ${{ inputs.jolt-version }}
+      jolt-version: ${{ matrix.version }}
     secrets: inherit
 
   report:
-    needs: fleet
-    if: always()
+    needs: [plan, fleet]
+    if: always() && needs.plan.outputs.proceed == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Mint an installation token
@@ -61,9 +195,8 @@ jobs:
       - name: Open, update or close the canary issue
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
-          FAILED: ${{ needs.fleet.outputs.failed }}
-          VERSION: ${{ needs.fleet.outputs.version }}
           RESULT: ${{ needs.fleet.result }}
+          VERSIONS: ${{ needs.plan.outputs.versions }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
@@ -75,23 +208,29 @@ jobs:
           if [ "$RESULT" = "success" ]; then
             if [ -n "$existing" ]; then
               gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" \
-                --body "Recovered. All five projects build against jolt \`${VERSION}\`. [Run](${RUN_URL})"
+                --body "Recovered. The fleet builds against ${VERSIONS}. [Run](${RUN_URL})"
               gh issue close "$existing" --repo "$GITHUB_REPOSITORY"
               echo "closed #$existing"
             else
-              echo "green against jolt ${VERSION}, nothing to report"
+              echo "green against ${VERSIONS}, nothing to report"
             fi
             exit 0
           fi
 
+          # Which matrix legs failed. The job names carry the version, so the
+          # issue can name it rather than making a reader open the run.
+          broke=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs" \
+                   --jq '[.jobs[] | select(.conclusion=="failure") | .name] | join(", ")' 2>/dev/null || echo "")
+
           body=$(printf '%s\n' \
-            "jolt \`${VERSION}\` does not build the whole fleet." \
+            "The fleet does not build against every jolt version it is meant to." \
             "" \
-            "**Affected:** ${FAILED:-see the run; fan-out itself failed}" \
+            "**Versions tested:** ${VERSIONS}" \
+            "**Failing:** ${broke:-see the run}" \
             "" \
-            "[Fan-out run](${RUN_URL}) has the per-project table and links to each build." \
+            "[Run](${RUN_URL}) has a per-project table for each version." \
             "" \
-            "This issue closes itself once a later canary passes. Reproduce a single" \
+            "This issue closes itself once a later canary passes. Reproduce one" \
             "project by dispatching its own ci.yml with the \`jolt-version\` input.")
 
           if [ -n "$existing" ]; then
@@ -100,3 +239,16 @@ jobs:
           else
             gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body "$body"
           fi
+
+  remember:
+    # Only a green run is worth remembering. Saving on failure would mark a
+    # broken version set as tested and suppress every later attempt at it.
+    needs: [plan, fleet]
+    if: needs.plan.outputs.proceed == 'true' && needs.fleet.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - run: mkdir -p .canary-state && date -u +%FT%TZ > .canary-state/passed-at
+      - uses: actions/cache/save@v4
+        with:
+          path: .canary-state
+          key: ${{ needs.plan.outputs.key }}

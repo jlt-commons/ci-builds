@@ -43,9 +43,38 @@ Reusing each project's real gate matters. `raygui-jlt` needs raylib natives,
 Xvfb. A central rebuild of all that would rot, and would test something other
 than what a contributor hits.
 
-`canary` runs `fan-out` daily against jolt's newest release and opens an issue
-when the fleet breaks, closing it again when a later run passes. So an open
-canary issue means "broken right now", not "broke once".
+`canary` runs `fan-out` against the jolt versions this fleet cares about, opens
+an issue when they break and closes it when a later run passes, so an open
+canary issue means "broken right now" rather than "broke once". Two versions:
+
+| | |
+|---|---|
+| pinned | what the projects pin today, `vars.JOLT_PIN`, default `0.8.0` |
+| latest | jolt's newest published release |
+
+They are the same while the fleet is current, and the run collapses to one
+build. They diverge the moment jolt ships a release nobody has adopted, which
+is the window worth watching.
+
+It ticks hourly and two gates decide whether a tick does anything:
+
+- **interval** — `vars.CANARY_INTERVAL_HOURS`, default `1`. A cron cannot be a
+  variable, GitHub requires a literal, so the schedule ticks hourly and this
+  decides how often a tick is allowed to do work. Measured from the last run
+  that actually built something, since a gated tick still finishes as a
+  successful run and would otherwise reset the clock every hour.
+- **change** — a version set that already passed is not retested. Held in the
+  Actions cache, so there is nothing to commit back and no extra permission.
+
+A manual dispatch ignores both.
+
+**Released versions only, and this is a limitation not a choice.** jolt's
+install script accepts `--version` and resolves it to a published release, so
+an unreleased commit cannot be installed, and jolt publishes no prereleases or
+nightlies. Testing jolt's `main` HEAD would mean building it from source
+against Chez on two operating systems and reworking all five projects to accept
+a prebuilt binary. If jolt ever publishes a rolling `dev` release, adding it to
+the matrix is a one-line change here.
 
 ## Using it
 
