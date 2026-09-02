@@ -49,7 +49,7 @@ canary issue means "broken right now" rather than "broke once". Two versions:
 
 | | |
 |---|---|
-| pinned | what the projects pin today, `vars.JOLT_PIN`, default `0.8.0` |
+| pinned | what the projects pin today, `vars.JOLT_PIN`, default `0.8.1` |
 | latest | jolt's newest published release |
 
 They are the same while the fleet is current, and the run collapses to one
@@ -97,7 +97,7 @@ Every project carries a workflow-level pin:
 
 ```yaml
 env:
-  JOLT_VERSION: ${{ inputs.jolt-version || '0.8.0' }}
+  JOLT_VERSION: ${{ inputs.jolt-version || '0.8.1' }}
 ```
 
 A floating `latest` lets a release published overnight turn CI red on a tree

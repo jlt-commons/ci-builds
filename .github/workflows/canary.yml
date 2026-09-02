@@ -4,7 +4,7 @@ name: canary
 # Ask, on a schedule, whether the jolt versions this fleet cares about still
 # build every project. Two of them:
 #
-#   pinned   what the projects actually pin today (vars.JOLT_PIN, default 0.8.0)
+#   pinned   what the projects actually pin today (vars.JOLT_PIN, default 0.8.1)
 #   latest   jolt's newest published release
 #
 # Identical while the fleet is up to date, and the run collapses to one build
@@ -68,7 +68,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          pin="${PIN:-0.8.0}"
+          pin="${PIN:-0.8.1}"
           interval="${INTERVAL_HOURS:-1}"
 
           if [ -n "$REQUESTED" ]; then
