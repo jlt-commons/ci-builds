@@ -289,6 +289,8 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
           RESULT: ${{ needs.fleet.result }}
+          FAILED: ${{ needs.fleet.outputs.failed }}
+          INFRA: ${{ needs.fleet.outputs.infra }}
           VERSIONS: ${{ needs.plan.outputs.versions }}
           NIGHTLY: ${{ needs.plan.outputs.nightly }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -316,17 +318,33 @@ jobs:
           broke=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs" \
                    --jq '[.jobs[] | select(.conclusion=="failure") | .name] | join(", ")' 2>/dev/null || echo "")
 
+          # A failure that is really our own misconfiguration should not be
+          # filed as a fact about jolt. fanout reports those separately.
+          if [ -n "${INFRA:-}" ] && [ -z "${FAILED:-}" ]; then
+            body=$(printf '%s\n' \
+              "jolt could not be INSTALLED for: ${INFRA}" \
+              "" \
+              "This is not a finding about jolt. The fleet asked for a version it" \
+              "could not fetch, which usually means a project's \`JOLT_REPO\` points" \
+              "at a repository that does not publish it. It should be unset unless" \
+              "deliberately aimed at a fork." \
+              "" \
+              "**Versions tested:** ${VERSIONS}" \
+              "" \
+              "[Run](${RUN_URL}) has the per-project table.")
+          else
           body=$(printf '%s\n' \
             "The fleet does not build against every jolt version it is meant to." \
-            "" \
-            "**Versions tested:** ${VERSIONS}" \
-            "**Failing:** ${broke:-see the run}" \
-            "**Nightly:** ${NIGHTLY:-not resolved}" \
-            "" \
-            "[Run](${RUN_URL}) has a per-project table for each version." \
-            "" \
-            "This issue closes itself once a later canary passes. Reproduce one" \
-            "project by dispatching its own ci.yml with the \`jolt-version\` input.")
+              "" \
+              "**Versions tested:** ${VERSIONS}" \
+              "**Failing:** ${broke:-see the run}" \
+              "**Nightly:** ${NIGHTLY:-not resolved}" \
+              "" \
+              "[Run](${RUN_URL}) has a per-project table for each version." \
+              "" \
+              "This issue closes itself once a later canary passes. Reproduce one" \
+              "project by dispatching its own ci.yml with the \`jolt-version\` input.")
+          fi
 
           if [ -n "$existing" ]; then
             gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"

@@ -39,6 +39,8 @@ on:
     outputs:
       failed:
         description: "Space-separated projects that did not pass"
+      infra:
+        description: "Space-separated projects whose jolt could not be installed at all"
         value: ${{ jobs.fanout.outputs.failed }}
       version:
         description: "The jolt version actually tested"
@@ -54,6 +56,7 @@ jobs:
     timeout-minutes: 60
     outputs:
       failed: ${{ steps.run.outputs.failed }}
+      infra: ${{ steps.run.outputs.infra }}
       version: ${{ steps.version.outputs.version }}
 
     steps:
@@ -188,6 +191,19 @@ jobs:
                                  --json status,conclusion \
                                  --jq '"\(.status) \(.conclusion // "-")"' 2>/dev/null || echo "unknown -")
               if [ "$st" = "completed" ]; then
+                # "jolt broke this project" and "we could not install jolt" both
+                # arrive as a failed run naming a project, and they call for
+                # opposite responses: one is a finding about jolt, the other is
+                # this fleet's own misconfiguration. Measured 2026-09-02:
+                # JOLT_REPO was left pointing at a fork that publishes only
+                # nightlies, so asking for 0.8.0 and 0.8.1 gave curl 404 and two
+                # scheduled canaries reported the fleet broken when it was fine.
+                if [ "$cc" = "failure" ] && gh api \
+                     "repos/jlt-commons/$p/actions/runs/${RUN[$p]}/jobs" \
+                     --jq '.jobs[].steps[]? | select(.conclusion=="failure") | .name' \
+                     2>/dev/null | grep -qi 'install jolt'; then
+                  cc="toolchain-unavailable"
+                fi
                 CONC[$p]="$cc"
                 echo "  $p: $cc"
               else
@@ -204,6 +220,7 @@ jobs:
 
           # Render the table this workflow exists to produce.
           failed=""
+          infra=""
           {
             echo "## jolt \`$VERSION\` across jlt-commons"
             echo
@@ -215,6 +232,8 @@ jobs:
             case "$c" in
               success)   icon="pass" ;;
               skipped)   icon="skipped" ;;
+              toolchain-unavailable)
+                         icon="**could not install jolt**"; infra="$infra $p" ;;
               *)         icon="**FAIL** ($c)"; failed="$failed $p" ;;
             esac
             link="-"
@@ -222,14 +241,21 @@ jobs:
             echo "| \`$p\` | $icon | $link |" >> "$GITHUB_STEP_SUMMARY"
           done
           failed="${failed# }"
+          infra="${infra# }"
           {
             echo
-            if [ -z "$failed" ]; then
-              echo "All 5 projects build against jolt \`$VERSION\`."
-            else
-              echo "**Broken by jolt \`$VERSION\`:** $failed"
+            [ -n "$failed" ] && echo "**Broken by jolt \`$VERSION\`:** $failed"
+            if [ -n "$infra" ]; then
+              echo "**Could not install jolt \`$VERSION\` for:** $infra"
+              echo
+              echo "That is this fleet's own problem, not a fact about jolt. Usually"
+              echo "the version does not exist in the repository being installed"
+              echo "from: check each project's \`JOLT_REPO\`, which should be unset"
+              echo "unless deliberately pointed at a fork."
             fi
+            [ -z "$failed$infra" ] && echo "All 5 projects build against jolt \`$VERSION\`."
           } >> "$GITHUB_STEP_SUMMARY"
 
           echo "failed=$failed" >> "$GITHUB_OUTPUT"
-          [ -z "$failed" ] || { echo "failing: $failed" >&2; exit 1; }
+          echo "infra=$infra" >> "$GITHUB_OUTPUT"
+          [ -z "$failed$infra" ] || { echo "failing: ${failed:-none}  infra: ${infra:-none}" >&2; exit 1; }
