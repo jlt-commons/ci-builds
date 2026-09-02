@@ -105,6 +105,15 @@ than `vars.NIGHTLY_MAX_AGE_HOURS` (default `48`), and stamps the age on every
 result. A skipped row says so in the run log and in the issue body. It never
 passes quietly.
 
+Fresh is not sufficient on its own. jolt tags `vnightly` at whatever main was
+when the nightly job ran, and that is often the release tag itself. On
+2026-09-02 `vnightly` and `v0.8.1` both pointed at `9b768395`, identical and
+three hours old, while main had already moved 7 commits past both. A row like
+that is fresh, green, and tells you nothing the release row did not already say.
+So the canary compares the nightly's commit against the release rows' commits
+and skips it as redundant when they match, rather than rendering one build as
+two answers.
+
 The `published_at` also goes into the change-gate cache key. The literal string
 `nightly` is the same today as yesterday, so without it the first green would
 cache a key every later run recomputes, and the nightly row would never run

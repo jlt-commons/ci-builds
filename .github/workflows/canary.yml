@@ -36,6 +36,15 @@ name: canary
 # artifact is older than vars.NIGHTLY_MAX_AGE_HOURS (default 48), and stamp the
 # age on every result either way. A skipped row says so; it never passes quietly.
 #
+# FRESH IS NOT ENOUGH, which the first version of this got wrong. jolt tags
+# vnightly at whatever main was when the nightly job ran, and that is often the
+# release tag itself. Measured 2026-09-02: vnightly and v0.8.1 both pointed at
+# 9b768395, identical, three hours old and perfectly fresh, while main had
+# already moved 7 commits past both. The row ran, went green, and reported the
+# same commit the 0.8.1 row had just built as if it were a second answer. So the
+# nightly's commit is compared against the release rows' too, and a match skips
+# it as redundant rather than double-counting one build as two.
+#
 # The published_at also goes into the cache key. Without that, the change gate
 # would see the literal string "nightly", find it unchanged from yesterday, and
 # suppress every future nightly run after the first green.
@@ -111,6 +120,12 @@ jobs:
             latest="${latest#v}"
             [ -n "$latest" ] || { echo "could not resolve jolt's latest release" >&2; exit 1; }
 
+            # The release rows first, because the nightly block compares against
+            # them. $latest is dropped when it equals the pin, so a current fleet
+            # collapses to one release build.
+            set -- "$pin"
+            [ "$latest" != "$pin" ] && set -- "$@" "$latest"
+
             # The nightly is a PRERELEASE, so releases/latest never returns it and
             # the two resolutions cannot collide. Read it by tag.
             #
@@ -123,18 +138,36 @@ jobs:
               nightly="nightly SKIPPED: no vnightly release found"
             else
               age=$(( ( $(date -u +%s) - $(date -u -d "$pub" +%s 2>/dev/null || echo 0) ) / 3600 ))
-              if [ "$age" -le "$max_age" ]; then
-                nightly_pub="$pub"
-                nightly="nightly published $pub, ${age}h old"
-              else
+              if [ "$age" -gt "$max_age" ]; then
                 nightly="nightly SKIPPED: published $pub, ${age}h old, limit ${max_age}h. jolt's publish-nightly is gated on its downstream library suites, so a lagging library withholds new builds while the old one stays installable"
+              else
+                # Fresh is necessary and NOT sufficient. jolt tags vnightly at
+                # whatever main was when the nightly job ran, and that is
+                # regularly the release tag itself: measured 2026-09-02, vnightly
+                # and v0.8.1 both pointed at 9b768395, identical, while main had
+                # already moved 7 commits past it. A row built from the same
+                # commit as a release row is not a second data point, it is the
+                # same data point rendered twice, and it reads as coverage.
+                #
+                # Lightweight tags on this repo, so object.sha IS the commit and
+                # one sed suffices. Verified against a real parse of both refs.
+                nsha="$(curl -fsSL https://api.github.com/repos/jolt-lang/jolt/git/refs/tags/vnightly \
+                        | sed -n 's/.*"sha": *"\([^"]*\)".*/\1/p' | head -1)"
+                dupe=""
+                for v in "$@"; do
+                  vsha="$(curl -fsSL "https://api.github.com/repos/jolt-lang/jolt/git/refs/tags/v$v" \
+                          | sed -n 's/.*"sha": *"\([^"]*\)".*/\1/p' | head -1)"
+                  [ -n "$nsha" ] && [ "$vsha" = "$nsha" ] && dupe="$v"
+                done
+                if [ -n "$dupe" ]; then
+                  nightly="nightly SKIPPED: vnightly is ${nsha:0:8}, the same commit as $dupe, so the row would rebuild what $dupe already covers"
+                else
+                  nightly_pub="$pub"
+                  nightly="nightly published $pub, ${age}h old, at ${nsha:0:8}"
+                fi
               fi
             fi
 
-            # Build the set. $latest is dropped when it equals the pin, so a
-            # current fleet collapses to one release build plus the nightly.
-            set -- "$pin"
-            [ "$latest" != "$pin" ] && set -- "$@" "$latest"
             [ -n "$nightly_pub" ] && set -- "$@" "nightly"
             versions="[$(printf '"%s",' "$@" | sed 's/,$//')]"
             echo "testing $versions"
