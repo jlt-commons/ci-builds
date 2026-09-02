@@ -11,13 +11,30 @@ name: canary
 # when they are. They diverge the moment jolt ships a release nobody has adopted
 # yet, which is precisely the window this is meant to cover.
 #
-# RELEASES ONLY, deliberately. jolt's install script takes --version and
-# resolves it to releases/download/v<x>/..., so an unreleased commit cannot be
-# installed at all, and jolt publishes no prereleases or nightlies. Testing
-# jolt's main HEAD would mean building it from source against Chez on two
-# operating systems and reworking all five projects to accept a prebuilt
-# binary. If jolt ever publishes a rolling `dev` release, add it to the matrix
-# below and this file is the only thing that changes.
+# NIGHTLY IS AVAILABLE NOW, and this block used to say it was not. jolt-lang/jolt#824
+# merged 2026-09-02 and jolt publishes a rolling `vnightly` prerelease from main,
+# so `install --version nightly` resolves it and the whole "build it from source
+# against Chez on two operating systems" plan this file used to describe is moot.
+# The fleet has been run against it: fan-out 33691047983, all five green, every
+# project's log showing `Successfully installed jolt vnightly`.
+#
+# It is deliberately NOT in the matrix below, and the reason is not cost. jolt's
+# publish-nightly runs only after its `libraries` and `libraries-db` gates, and it
+# publishes by staging a draft, DELETING the old release, then moving the tag. So a
+# lagging downstream library withholds the new artifact while the PREVIOUS vnightly
+# stays up and installs perfectly. A row that reads `nightly` and goes green cannot
+# distinguish "main is healthy" from "main broke four days ago and we keep testing
+# Tuesday's binary". A green row that cannot go red is worse than no row,
+# because it reads as coverage.
+#
+# So adding nightly needs a freshness assertion first: read the vnightly release's
+# published_at, render it beside the result, and fail past a threshold. Two days is
+# a defensible start against jolt's one-to-two-day release cadence. Until that
+# exists, test nightly by hand with a fan-out dispatch, where a human is reading
+# the answer and can go look at the release date.
+#
+# The pinned and latest rows below are RELEASES, which have none of this problem:
+# a release is immutable once published, so its row means what it says.
 #
 # TWO GATES, so an hourly tick is cheap:
 #

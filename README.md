@@ -68,13 +68,29 @@ It ticks hourly and two gates decide whether a tick does anything:
 
 A manual dispatch ignores both.
 
-**Released versions only, and this is a limitation not a choice.** jolt's
-install script accepts `--version` and resolves it to a published release, so
-an unreleased commit cannot be installed, and jolt publishes no prereleases or
-nightlies. Testing jolt's `main` HEAD would mean building it from source
-against Chez on two operating systems and reworking all five projects to accept
-a prebuilt binary. If jolt ever publishes a rolling `dev` release, adding it to
-the matrix is a one-line change here.
+**Both rows are releases, and jolt's `main` is testable too.** This section
+used to say testing an unreleased jolt would mean building it from source
+against Chez on two operating systems. That stopped being true on 2026-09-02,
+when [jolt-lang/jolt#824](https://github.com/jolt-lang/jolt/pull/824) merged and
+jolt began publishing a rolling `vnightly` prerelease from main. Every project
+already takes a `jolt-version` input, so:
+
+```
+gh workflow run fanout.yml --repo jlt-commons/ci-builds -f jolt-version=nightly
+```
+
+is the whole thing, no code anywhere. Run [33691047983](https://github.com/jlt-commons/ci-builds/actions/runs/33691047983)
+did exactly that and all five passed.
+
+`nightly` is deliberately not in the canary matrix yet, and cost is not the
+reason. jolt publishes the nightly by staging a draft, deleting the old release,
+then moving the tag, and only after its own downstream-library gates pass. So a
+lagging library withholds the new artifact while the previous `vnightly` stays
+up and installs perfectly. A green `nightly` row would not distinguish "main is
+healthy" from "main broke on Tuesday and we are still testing Tuesday's binary".
+Adding the row needs a freshness check on the release's `published_at` first.
+A release row has none of this problem, because a published release is
+immutable.
 
 ## Using it
 
