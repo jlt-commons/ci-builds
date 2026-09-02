@@ -18,23 +18,30 @@ name: canary
 # The fleet has been run against it: fan-out 33691047983, all five green, every
 # project's log showing `Successfully installed jolt vnightly`.
 #
-# It is deliberately NOT in the matrix below, and the reason is not cost. jolt's
-# publish-nightly runs only after its `libraries` and `libraries-db` gates, and it
-# publishes by staging a draft, DELETING the old release, then moving the tag. So a
-# lagging downstream library withholds the new artifact while the PREVIOUS vnightly
-# stays up and installs perfectly. A row that reads `nightly` and goes green cannot
-# distinguish "main is healthy" from "main broke four days ago and we keep testing
-# Tuesday's binary". A green row that cannot go red is worse than no row,
-# because it reads as coverage.
+# It is in the matrix, BEHIND A FRESHNESS CHECK, and the check is the whole reason
+# the row can be trusted. jolt's publish-nightly runs only after its `libraries`
+# and `libraries-db` gates, and it publishes by staging a draft, DELETING the old
+# release, then moving the tag. So a lagging downstream library withholds the NEW
+# artifact while the PREVIOUS vnightly stays up and installs perfectly.
 #
-# So adding nightly needs a freshness assertion first: read the vnightly release's
-# published_at, render it beside the result, and fail past a threshold. Two days is
-# a defensible start against jolt's one-to-two-day release cadence. Until that
-# exists, test nightly by hand with a fan-out dispatch, where a human is reading
-# the answer and can go look at the release date.
+# That is not hypothetical. jolt's own first nightly run published nothing at all,
+# because `library db`, `library db (postgres)` and `library transit-jolt` were
+# failing on main with "No dependency provides Locale ... a library supplies one by
+# declaring :jolt/provides (RFC 0014)", the same breaking change v0.8.1 announced.
 #
-# The pinned and latest rows below are RELEASES, which have none of this problem:
-# a release is immutable once published, so its row means what it says.
+# Without a check, a `nightly` row that goes green cannot distinguish "main is
+# healthy" from "main broke four days ago and we keep testing Tuesday's binary",
+# and a green row that cannot go red is worse than no row, because it reads as
+# coverage. So: read the vnightly release's published_at, SKIP the row when the
+# artifact is older than vars.NIGHTLY_MAX_AGE_HOURS (default 48), and stamp the
+# age on every result either way. A skipped row says so; it never passes quietly.
+#
+# The published_at also goes into the cache key. Without that, the change gate
+# would see the literal string "nightly", find it unchanged from yesterday, and
+# suppress every future nightly run after the first green.
+#
+# The pinned and latest rows are RELEASES, which have none of this problem: a
+# release is immutable once published, so its row means what it says.
 #
 # TWO GATES, so an hourly tick is cheap:
 #
@@ -74,6 +81,7 @@ jobs:
       proceed: ${{ steps.final.outputs.proceed }}
       reason: ${{ steps.decide.outputs.reason }}
       key: ${{ steps.decide.outputs.key }}
+      nightly: ${{ steps.decide.outputs.nightly }}
     steps:
       - name: Work out what to test, and whether to bother
         id: decide
@@ -81,6 +89,7 @@ jobs:
           REQUESTED: ${{ inputs.jolt-version }}
           PIN: ${{ vars.JOLT_PIN }}
           INTERVAL_HOURS: ${{ vars.CANARY_INTERVAL_HOURS }}
+          NIGHTLY_MAX_AGE_HOURS: ${{ vars.NIGHTLY_MAX_AGE_HOURS }}
           EVENT: ${{ github.event_name }}
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -88,27 +97,61 @@ jobs:
           pin="${PIN:-0.8.1}"
           interval="${INTERVAL_HOURS:-1}"
 
+          max_age="${NIGHTLY_MAX_AGE_HOURS:-48}"
+          nightly_pub=""
+          nightly=""
+
           if [ -n "$REQUESTED" ]; then
             versions="[\"$REQUESTED\"]"
+            nightly="manual dispatch of $REQUESTED, freshness gate not applied"
             echo "manual dispatch, testing $REQUESTED only"
           else
             latest="$(curl -fsSL https://api.github.com/repos/jolt-lang/jolt/releases/latest \
                       | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -1)"
             latest="${latest#v}"
             [ -n "$latest" ] || { echo "could not resolve jolt's latest release" >&2; exit 1; }
-            if [ "$latest" = "$pin" ]; then
-              versions="[\"$pin\"]"
-              echo "pinned and latest are both $pin, one build"
+
+            # The nightly is a PRERELEASE, so releases/latest never returns it and
+            # the two resolutions cannot collide. Read it by tag.
+            #
+            # A missing release is not an error here: jolt could stop publishing
+            # nightlies and the release rows would still be worth running. It is a
+            # skipped row with a stated reason, like a stale one.
+            pub="$(curl -fsSL https://api.github.com/repos/jolt-lang/jolt/releases/tags/vnightly \
+                   | sed -n 's/.*"published_at": *"\([^"]*\)".*/\1/p' | head -1)"
+            if [ -z "$pub" ]; then
+              nightly="nightly SKIPPED: no vnightly release found"
             else
-              versions="[\"$pin\",\"$latest\"]"
-              echo "pinned $pin, latest $latest, two builds"
+              age=$(( ( $(date -u +%s) - $(date -u -d "$pub" +%s 2>/dev/null || echo 0) ) / 3600 ))
+              if [ "$age" -le "$max_age" ]; then
+                nightly_pub="$pub"
+                nightly="nightly published $pub, ${age}h old"
+              else
+                nightly="nightly SKIPPED: published $pub, ${age}h old, limit ${max_age}h. jolt's publish-nightly is gated on its downstream library suites, so a lagging library withholds new builds while the old one stays installable"
+              fi
             fi
+
+            # Build the set. $latest is dropped when it equals the pin, so a
+            # current fleet collapses to one release build plus the nightly.
+            set -- "$pin"
+            [ "$latest" != "$pin" ] && set -- "$@" "$latest"
+            [ -n "$nightly_pub" ] && set -- "$@" "nightly"
+            versions="[$(printf '"%s",' "$@" | sed 's/,$//')]"
+            echo "testing $versions"
           fi
           echo "versions=$versions" >> "$GITHUB_OUTPUT"
+          echo "nightly=$nightly" >> "$GITHUB_OUTPUT"
+          echo "$nightly"
 
           # The cache key IS the change detector. A new jolt release changes the
           # version set, which changes the key, which misses the cache.
+          #
+          # The nightly needs the published_at folded in, because the literal
+          # string "nightly" is identical from one day to the next. Without it the
+          # first green would cache a key that every later run also computes, and
+          # the nightly row would never run again however far main moved.
           key="canary-green-$(printf '%s' "$versions" | tr -d '[]" ' | tr ',' '-')"
+          [ -n "$nightly_pub" ] && key="$key-$(printf '%s' "$nightly_pub" | tr -cd '0-9')"
           echo "key=$key" >> "$GITHUB_OUTPUT"
 
           if [ "$EVENT" != "schedule" ]; then
@@ -214,6 +257,7 @@ jobs:
           GH_TOKEN: ${{ steps.token.outputs.token }}
           RESULT: ${{ needs.fleet.result }}
           VERSIONS: ${{ needs.plan.outputs.versions }}
+          NIGHTLY: ${{ needs.plan.outputs.nightly }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
@@ -225,7 +269,7 @@ jobs:
           if [ "$RESULT" = "success" ]; then
             if [ -n "$existing" ]; then
               gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" \
-                --body "Recovered. The fleet builds against ${VERSIONS}. [Run](${RUN_URL})"
+                --body "Recovered. The fleet builds against ${VERSIONS}. ${NIGHTLY}. [Run](${RUN_URL})"
               gh issue close "$existing" --repo "$GITHUB_REPOSITORY"
               echo "closed #$existing"
             else
@@ -244,6 +288,7 @@ jobs:
             "" \
             "**Versions tested:** ${VERSIONS}" \
             "**Failing:** ${broke:-see the run}" \
+            "**Nightly:** ${NIGHTLY:-not resolved}" \
             "" \
             "[Run](${RUN_URL}) has a per-project table for each version." \
             "" \

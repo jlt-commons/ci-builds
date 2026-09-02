@@ -82,15 +82,36 @@ gh workflow run fanout.yml --repo jlt-commons/ci-builds -f jolt-version=nightly
 is the whole thing, no code anywhere. Run [33691047983](https://github.com/jlt-commons/ci-builds/actions/runs/33691047983)
 did exactly that and all five passed.
 
-`nightly` is deliberately not in the canary matrix yet, and cost is not the
-reason. jolt publishes the nightly by staging a draft, deleting the old release,
-then moving the tag, and only after its own downstream-library gates pass. So a
+`nightly` is now a third row in the canary matrix, behind a freshness check
+that is the reason the row can be trusted:
+
+| | |
+|---|---|
+| pinned | what the projects pin today, `vars.JOLT_PIN`, default `0.8.1` |
+| latest | jolt's newest published release |
+| nightly | jolt's `vnightly` prerelease, when it is fresh enough |
+
+jolt publishes the nightly by staging a draft, deleting the old release, then
+moving the tag, and only after its own downstream-library gates pass. So a
 lagging library withholds the new artifact while the previous `vnightly` stays
-up and installs perfectly. A green `nightly` row would not distinguish "main is
-healthy" from "main broke on Tuesday and we are still testing Tuesday's binary".
-Adding the row needs a freshness check on the release's `published_at` first.
-A release row has none of this problem, because a published release is
-immutable.
+up and installs perfectly. jolt's very first nightly run published nothing at
+all for exactly that reason, with three library suites failing on main against
+the `:jolt/provides` change that v0.8.1 later announced.
+
+Left alone, a green `nightly` row could not distinguish "main is healthy" from
+"main broke on Tuesday and we are still testing Tuesday's binary". So the canary
+reads the release's `published_at`, skips the row when the artifact is older
+than `vars.NIGHTLY_MAX_AGE_HOURS` (default `48`), and stamps the age on every
+result. A skipped row says so in the run log and in the issue body. It never
+passes quietly.
+
+The `published_at` also goes into the change-gate cache key. The literal string
+`nightly` is the same today as yesterday, so without it the first green would
+cache a key every later run recomputes, and the nightly row would never run
+again however far main moved.
+
+The two release rows need none of this, because a published release is
+immutable once it exists.
 
 ## Using it
 
