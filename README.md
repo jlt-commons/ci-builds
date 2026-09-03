@@ -43,7 +43,23 @@ Reusing each project's real gate matters. `raygui-jlt` needs raylib natives,
 `glitter-uikit` needs AppKit and GTK4, `glitter-gl` needs a GL context under
 Xvfb. `raylib-ios` is the odd one: its real target is a phone, which no runner
 can be, so what it contributes here is its pure scene namespaces run under jolt
-on Linux. That still catches a jolt divergence, which is what this is for. A central rebuild of all that would rot, and would test something other
+on Linux. That still catches a jolt divergence, which is what this is for.
+
+### Adding a project to the fan-out
+
+Two steps, and the second is not in this repository.
+
+1. Add it to `PROJECTS` in `.github/workflows/fanout.yml`, and give the project
+   a `ci.yml` that takes a `jolt-version` input and actually builds or tests
+   under jolt. A project whose CI never touches jolt will report a green here
+   that means nothing, which is worse than being absent.
+2. **Add the repository to the `jlt-commons-ci` GitHub App installation.** The
+   App is scoped to selected repositories, and the token the fan-out mints
+   reaches only those. A project in `PROJECTS` but outside the installation
+   fails at dispatch with a 404 that reads like a missing workflow. This is a
+   settings change, at
+   `https://github.com/organizations/jlt-commons/settings/installations`, and no
+   API call in this repository can do it. A central rebuild of all that would rot, and would test something other
 than what a contributor hits.
 
 `canary` runs `fan-out` against the jolt versions this fleet cares about, opens
