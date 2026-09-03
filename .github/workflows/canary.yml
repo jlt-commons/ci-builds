@@ -229,7 +229,7 @@ jobs:
       - name: Have we already passed this version set?
         id: seen
         if: steps.decide.outputs.proceed == 'true' && github.event_name == 'schedule'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6.1.0
         with:
           path: .canary-state
           key: ${{ steps.decide.outputs.key }}
@@ -361,7 +361,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: mkdir -p .canary-state && date -u +%FT%TZ > .canary-state/passed-at
-      - uses: actions/cache/save@v4
+      - uses: actions/cache/save@v6.1.0
         with:
           path: .canary-state
           key: ${{ needs.plan.outputs.key }}
