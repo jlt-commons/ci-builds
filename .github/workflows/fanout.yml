@@ -256,7 +256,11 @@ jobs:
               echo "from: check each project's \`JOLT_REPO\`, which should be unset"
               echo "unless deliberately pointed at a fork."
             fi
-            [ -z "$failed$infra" ] && echo "All 5 projects build against jolt \`$VERSION\`."
+            # Counted from PROJECTS rather than written out. The literal said five
+            # for as long as there were five, then went on saying it after there
+            # were six, which is what a count kept by hand beside the list it
+            # counts always does eventually.
+            [ -z "$failed$infra" ] && echo "All $(set -- $PROJECTS; echo $#) projects build against jolt \`$VERSION\`."
           } >> "$GITHUB_STEP_SUMMARY"
 
           echo "failed=$failed" >> "$GITHUB_OUTPUT"
