@@ -34,13 +34,16 @@ those five workflows, waits, and renders the answers:
 | `glitter-uikit` | pass   | [run]  |
 | `raygui-jlt`    | pass   | [run]  |
 | `raylib-jlt`    | pass   | [run]  |
+| `raylib-ios`    | pass   | [run]  |
 
-All 5 projects build against jolt `0.8.0`.
+All 6 projects build against jolt `0.8.0`.
 ```
 
 Reusing each project's real gate matters. `raygui-jlt` needs raylib natives,
 `glitter-uikit` needs AppKit and GTK4, `glitter-gl` needs a GL context under
-Xvfb. A central rebuild of all that would rot, and would test something other
+Xvfb. `raylib-ios` is the odd one: its real target is a phone, which no runner
+can be, so what it contributes here is its pure scene namespaces run under jolt
+on Linux. That still catches a jolt divergence, which is what this is for. A central rebuild of all that would rot, and would test something other
 than what a contributor hits.
 
 `canary` runs `fan-out` against the jolt versions this fleet cares about, opens

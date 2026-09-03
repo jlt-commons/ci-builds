@@ -6,7 +6,9 @@ name: fan-out
 #
 # It does NOT rebuild anything itself. Each project's own ci.yml already knows
 # how to build it (raygui needs raylib natives, glitter-uikit needs AppKit and
-# GTK4, glitter-gl needs a GL context under Xvfb), and every one of them
+# GTK4, glitter-gl needs a GL context under Xvfb, raylib-ios runs its pure
+# scenes under jolt on Linux because its real target is a phone), and every one
+# of them
 # accepts a `jolt-version` dispatch input that overrides its pinned
 # JOLT_VERSION for a single run. So this workflow dispatches those and collects
 # the answers. Reimplementing five build environments here would rot, and would
@@ -14,7 +16,7 @@ name: fan-out
 #
 # Auth is the jlt-commons-ci GitHub App rather than a PAT, so a run is
 # attributed to the App and not to whoever pressed the button, and the token it
-# mints lives for an hour and reaches exactly six repositories.
+# mints lives for an hour and reaches exactly seven repositories.
 #
 # Why this exists: jolt v0.8.0 published 2026-09-01 and reversed
 # jolt.ffi/write's last two arguments (jolt-lang/jolt#802). Both spellings are
@@ -61,7 +63,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
 
     steps:
-      # Mints a token scoped to the App's six repositories, valid one hour.
+      # Mints a token scoped to the App's seven repositories, valid one hour.
       # Never a PAT: a PAT would act as whoever created it, and any collaborator
       # able to run this workflow would be borrowing that identity.
       - name: Mint an installation token
@@ -101,7 +103,7 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -uo pipefail
-          PROJECTS="glitter glitter-gl glitter-uikit raygui-jlt raylib-jlt"
+          PROJECTS="glitter glitter-gl glitter-uikit raygui-jlt raylib-jlt raylib-ios"
           declare -A RUN CONC URL
           # A plain string, not an associative array: `${#arr[@]}` and
           # `${!arr[@]}` on an EMPTY associative array are only safe under
