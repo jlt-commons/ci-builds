@@ -127,7 +127,11 @@ passes quietly.
 Fresh is not sufficient on its own. jolt tags `vnightly` at whatever main was
 when the nightly job ran, and that is often the release tag itself. On
 2026-09-02 `vnightly` and `v0.8.1` both pointed at `9b768395`, identical and
-three hours old, while main had already moved 7 commits past both. A row like
+three hours old, while main had already moved 7 commits past both. That SHA
+named upstream's line as it stood that day. jolt force-pushed main on
+2026-09-03 and moved both `0.8.x` tags to byte-identical commits, so it no
+longer resolves there, which is the reason the canary compares tags at run time
+rather than trusting an id written down earlier. A row like
 that is fresh, green, and tells you nothing the release row did not already say.
 So the canary compares the nightly's commit against the release rows' commits
 and skips it as redundant when they match, rather than rendering one build as

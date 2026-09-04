@@ -40,7 +40,12 @@ name: canary
 # vnightly at whatever main was when the nightly job ran, and that is often the
 # release tag itself. Measured 2026-09-02: vnightly and v0.8.1 both pointed at
 # 9b768395, identical, three hours old and perfectly fresh, while main had
-# already moved 7 commits past both. The row ran, went green, and reported the
+# already moved 7 commits past both. Recorded as tag-plus-SHA on purpose: that SHA sat on upstream's PRE-FORCE-PUSH line. jolt force-pushed main on
+# 2026-09-03 and moved both 0.8.x tags to byte-identical commits, so it no
+# longer resolves against upstream's history. Which is the argument for this
+# check comparing tags at RUNTIME rather than trusting a recorded id: a SHA is
+# a label that can be orphaned, and `git rev-parse` still answers cheerfully
+# from a local object store when it has been. The row ran, went green, and reported the
 # same commit the 0.8.1 row had just built as if it were a second answer. So the
 # nightly's commit is compared against the release rows' too, and a match skips
 # it as redundant rather than double-counting one build as two.
@@ -144,8 +149,11 @@ jobs:
                 # Fresh is necessary and NOT sufficient. jolt tags vnightly at
                 # whatever main was when the nightly job ran, and that is
                 # regularly the release tag itself: measured 2026-09-02, vnightly
-                # and v0.8.1 both pointed at 9b768395, identical, while main had
-                # already moved 7 commits past it. A row built from the same
+                # and v0.8.1 both pointed at 9b768395 (on upstream's line as it
+                # stood that day; main was force-pushed and both 0.8.x tags moved
+                # to byte-identical commits on 2026-09-03, which is exactly why
+                # this compares tags live instead of a recorded SHA), identical,
+                # while main had already moved 7 commits past it. A row built from the same
                 # commit as a release row is not a second data point, it is the
                 # same data point rendered twice, and it reads as coverage.
                 #
