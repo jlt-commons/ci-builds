@@ -242,3 +242,10 @@ Two things it records that are easy to get wrong:
   someone edits the workflow. Deliberate for now: discovery by topic or by
   listing the App's installation would be quieter but would also silently
   change what the canary covers.
+
+## Licence
+
+Copyright (c) 2026 Burin Choomnuan.
+
+Distributed under the Eclipse Public License 2.0. The full text is in
+`LICENSE`. SPDX identifier: `EPL-2.0`.
