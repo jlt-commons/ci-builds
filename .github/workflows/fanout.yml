@@ -103,7 +103,7 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -uo pipefail
-          PROJECTS="glitter glitter-gl glitter-uikit raygui-jlt raylib-jlt raylib-ios"
+          PROJECTS="glitter glitter-gl glitter-uikit raygui-jlt raylib-jlt raylib-ios raylib-android"
           declare -A RUN CONC URL
           # A plain string, not an associative array: `${#arr[@]}` and
           # `${!arr[@]}` on an EMPTY associative array are only safe under
