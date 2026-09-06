@@ -272,6 +272,28 @@ jobs:
     if: needs.plan.outputs.proceed == 'true'
     strategy:
       fail-fast: false
+      # ONE version at a time. Each leg's fan-out dispatches every project's
+      # own ci.yml on `main`, and with two or three legs in flight together
+      # that is two or three near-simultaneous workflow_dispatch calls
+      # against the SAME project on the SAME ref. raylib-ios's concurrency
+      # group cancels unconditionally (`cancel-in-progress: true`, no ref
+      # guard), so its earlier dispatches die within a couple of seconds of
+      # the next one starting - reproduced 2026-09-05, run 33999584713:
+      # raylib-ios cancelled (not failed) in both the nightly and 0.8.1 legs,
+      # created and cancelled a mere 2-3s apart. glitter-gl's own dispatch
+      # was cancelled the same run despite ITS concurrency group being
+      # ref-guarded false on main, same instant cancellation pattern (2s),
+      # so something outside any one project's own workflow file also
+      # collides two of these together, not only raylib-ios's config.
+      # Either way, `fanout.yml` treats a "cancelled" conclusion the same as
+      # a genuine build failure and reports "jolt breaks the fleet" (issue
+      # #5) for a version nothing actually failed against - every leg that
+      # finished normally that run was green. max-parallel: 1 removes the
+      # race outright: legs run one after another, so no project is ever
+      # dispatched twice at once. Costs wall-clock (up to ~3x on a run that
+      # tests all three rows), not correctness, and an hourly cron has the
+      # room.
+      max-parallel: 1
       matrix:
         version: ${{ fromJSON(needs.plan.outputs.versions) }}
     uses: ./.github/workflows/fanout.yml
