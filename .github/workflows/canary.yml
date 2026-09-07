@@ -4,7 +4,11 @@ name: canary
 # Ask, on a schedule, whether the jolt versions this fleet cares about still
 # build every project. Two of them:
 #
-#   pinned   what the projects actually pin today (vars.JOLT_PIN, default 0.8.1)
+#   pinned   what the projects actually pin today. Read from the vars.JOLT_PIN
+#            repo variable, which is the live source of truth and needs
+#            bumping by hand once a new release is validated (fan-out it
+#            manually first); the script's own 0.8.1 fallback only matters if
+#            that variable is ever unset entirely.
 #   latest   jolt's newest published release
 #
 # Identical while the fleet is up to date, and the run collapses to one build
