@@ -34,7 +34,7 @@ on:
         description: "Tag of jlt-commons/docs-engine to build with"
         type: string
         required: false
-        default: v0.4.1
+        default: v0.4.2
 
 jobs:
   build:
