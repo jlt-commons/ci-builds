@@ -173,6 +173,12 @@ A floating `latest` lets a release published overnight turn CI red on a tree
 nobody touched, which is the same reason clj-kondo, clojure-lsp and babashka
 are pinned in those workflows.
 
+The shared docs-site workflow (`.github/workflows/site.yml`) follows the same
+convention. It takes a `jolt-version` input that defaults to a fixed release
+(`0.8.19` at the time of writing), so every project's site builds with the
+same jolt until that default is moved here in one reviewed commit. A project
+can still pass `jolt-version` to try another release on its own site.
+
 Note what `:jolt/min-version` in a project's `deps.edn` does **not** do. jolt
 honours that key only from
 [#804](https://github.com/jolt-lang/jolt/pull/804), which is the direct child

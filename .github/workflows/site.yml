@@ -35,6 +35,11 @@ on:
         type: string
         required: false
         default: v0.4.3
+      jolt-version:
+        description: "jolt version to build with, e.g. 0.8.19 (see 'The pin convention' in the README)"
+        type: string
+        required: false
+        default: "0.8.19"
 
 jobs:
   build:
@@ -51,8 +56,16 @@ jobs:
           ref: ${{ inputs.docs-engine-ref }}
           path: .docs-engine
 
+      # Pinned for the same reason as docs-engine-ref and every project's
+      # JOLT_VERSION: an unpinned build resolved jolt's latest release on each
+      # run, so a release published overnight could turn every site red on
+      # trees nobody touched, and each build spent a GitHub API call finding
+      # out which release that was. A project can override it for one run;
+      # moving the default is a reviewed commit here.
       - name: Install jolt
         uses: jlt-commons/setup-jolt@v1
+        with:
+          version: ${{ inputs.jolt-version }}
 
       - name: Build
         working-directory: .docs-engine
