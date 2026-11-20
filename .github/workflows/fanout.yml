@@ -237,7 +237,8 @@ jobs:
                   for jid in $(gh api "repos/jlt-commons/$p/actions/runs/${RUN[$p]}/jobs" \
                                  --jq '.jobs[].id' 2>/dev/null); do
                     gh api "repos/jlt-commons/$p/actions/jobs/$jid/logs" \
-                      > "$RES_DIR/$p-$jid.log" 2>/dev/null || true
+                      > "$RES_DIR/$p-$jid.log" 2> "$RES_DIR/$p-$jid.err" \
+                      || echo "::warning::could not fetch the log of $p job $jid: $(head -c 300 "$RES_DIR/$p-$jid.err")"
                     if inst=$(installed_version "$RES_DIR/$p-$jid.log"); then break; fi
                     inst=""
                   done
