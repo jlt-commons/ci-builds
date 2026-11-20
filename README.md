@@ -174,6 +174,33 @@ cannot be ordered and are listed separately.
 GH_TOKEN=$(gh auth token) jolt fleet:deps --out deps.json
 ```
 
+### deps.json
+
+The file is meant to be read by tools as well as the page. It is published
+at <https://jlt-commons.github.io/fleet/deps.json> (the site copies it from
+the `status` branch hourly) and at
+`https://raw.githubusercontent.com/jlt-commons/ci-builds/status/deps.json`.
+Schema 1:
+
+| field | meaning |
+|---|---|
+| `generated_at` | when the graph was collected |
+| `libraries[].id` | `org/name` |
+| `libraries[].git_url`, `default_branch` | where to clone it and which branch to change |
+| `libraries[].latest` | `{tag, sha}`: the highest semver tag and its commit, or `tag: null` and the default branch head |
+| `libraries[].upstream` | every library it depends on, transitively |
+| `libraries[].waves` | the retag order after it gets a new tag: a list of waves, each a list of ids |
+| `libraries[].cycle` | libraries in a dependency cycle with it, left out of `waves` |
+| `edges[].from`, `to` | `from` is the dependency, `to` the library whose deps.edn pins it |
+| `edges[].state` | the worst state among its pins |
+| `edges[].pins[]` | one per coordinate: `dep` (the symbol), `path` (the keys to the map holding it, e.g. `["aliases","test","extra-deps"]`), `tag`, `sha`, `ref`, `resolved` (the tag a bare sha matches) and `state` |
+
+To roll a release of A through the graph: for each wave in A's `waves`, and
+each library L in it, take the edges with `to` = L whose `from` is A or a
+library from an earlier wave, rewrite each pin's `:git/tag` and `:git/sha` at
+its `path` to that library's new tag, and tag L. A wave's libraries are
+independent of each other.
+
 ## Dashboard
 
 <https://jlt-commons.github.io/fleet/> has one row per project and three

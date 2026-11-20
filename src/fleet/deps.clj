@@ -51,15 +51,22 @@
 (defn- coord? [v] (and (map? v) (some #(contains? v %) coord-keys)))
 
 (defn dep-coords
-  "Every [dep-symbol coord-map] pair anywhere in a parsed deps.edn form, so
-  :deps, :extra-deps, :override-deps and aliases all count."
+  "Every [dep-symbol coord-map path] triple anywhere in a parsed deps.edn
+  form, so :deps, :extra-deps, :override-deps and aliases all count. path is
+  the keys leading to the map that holds the coordinate, as strings without
+  the colon, e.g. [\"aliases\" \"test\" \"extra-deps\"]."
   [form]
-  (letfn [(walk [x acc]
+  (letfn [(kname [k] (if (keyword? k) (subs (str k) 1) (str k)))
+          (walk [x path acc]
             (cond
-              (map? x)  (reduce-kv (fn [a k v] (if (coord? v) (conj a [k v]) (walk v a))) acc x)
-              (coll? x) (reduce (fn [a v] (walk v a)) acc x)
+              (map? x)  (reduce-kv (fn [a k v]
+                                     (if (coord? v)
+                                       (conj a [k v path])
+                                       (walk v (conj path (kname k)) a)))
+                                   acc x)
+              (coll? x) (reduce (fn [a v] (walk v path a)) acc x)
               :else     acc))]
-    (walk form [])))
+    (walk form [] [])))
 
 (defn- url-repo
   "owner/name from a GitHub url in https, ssh or scp form."
@@ -88,6 +95,7 @@
    :private   (boolean (:isPrivate node))
    :archived  (boolean (:isArchived node))
    :head      (get-in node [:defaultBranchRef :target :oid])
+   :branch    (get-in node [:defaultBranchRef :name])
    :deps-text (get-in node [:deps :text])
    :tags      (mapv (fn [r] {:name (:name r)
                              :sha  (or (get-in r [:target :target :oid]) (get-in r [:target :oid]))})
@@ -191,6 +199,8 @@
                          :org        (:org r)
                          :name       (:name r)
                          :url        (:url r)
+                         :git_url    (str "https://github.com/" (:org r) "/" (:name r) ".git")
+                         :default_branch (:branch r)
                          :latest     {:tag (:name lt) :sha (or (:sha lt) (:head r))}
                          :head       (:head r)
                          :tags       (:tags r)
@@ -201,14 +211,15 @@
         by-id (into {} (map (juxt (comp str/lower-case :id) identity)) libs)
         edges (->> libs
                    (mapcat (fn [dependent]
-                             (for [[k coord] (:coords dependent)
+                             (for [[k coord path] (:coords dependent)
                                    :let [dep (some-> (coord-repo k coord) str/lower-case by-id)]
                                    :when (and dep (not= (:id dep) (:id dependent)))]
-                               [[(:id dep) (:id dependent)] (assoc (pin-state dep coord compare) :dep (str k))])))
+                               [[(:id dep) (:id dependent)]
+                                (assoc (pin-state dep coord compare) :dep (str k) :path path)])))
                    (reduce (fn [m [k pin]] (update m k (fnil conj []) pin)) {})
                    (map (fn [[[from to] pins]]
                           {:from from :to to
-                           :pins (mapv #(dissoc % :dep) (distinct pins))
+                           :pins (vec (distinct pins))
                            :dep (:dep (first pins))
                            :state (worst (map :state pins))}))
                    (sort-by (juxt :from :to))

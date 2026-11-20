@@ -79,19 +79,25 @@
       (is (= {:tag "v0.3.0" :sha (sha "2")} (:latest (lib g "jlt-commons/b")))))
     (testing "an untagged repository's latest is its default branch head"
       (is (= {:tag nil :sha (sha "5")} (:latest (lib g "jolt-lang/time")))))
-    (is (false? (:has_deps (lib g "jlt-commons/docs"))))))
+    (is (false? (:has_deps (lib g "jlt-commons/docs"))))
+    (testing "an updater can clone each library and knows its branch"
+      (is (= "https://github.com/jlt-commons/a.git" (:git_url (lib g "jlt-commons/a"))))
+      (is (= "main" (:default_branch (lib g "jlt-commons/a")))))))
 
 (deftest edges-point-from-dependency-to-dependent-with-pin-state
   (let [g (graph)]
     (testing "a tag older than the latest is behind"
       (let [e (edge g "jlt-commons/a" "jlt-commons/b")]
         (is (= "behind" (:state e)))
-        (is (= [{:tag "v0.1.0" :sha "1111111" :ref nil :resolved "v0.1.0" :state "behind"}] (:pins e)))))
+        (is (= [{:tag "v0.1.0" :sha "1111111" :ref nil :resolved "v0.1.0" :state "behind"
+                 :dep "io.github.jlt-commons/a" :path ["deps"]}]
+               (:pins e)))))
     (testing "a sha matching the latest tag's commit is current"
       (is (= "current" (:state (edge g "jlt-commons/b" "jlt-commons/c"))))
       (is (= "v0.3.0" (-> (edge g "jlt-commons/b" "jlt-commons/c") :pins first :resolved))))
-    (testing "an alias pin counts, matched by symbol"
-      (is (= "current" (:state (edge g "jlt-commons/a" "jlt-commons/c")))))
+    (testing "an alias pin counts, matched by symbol, and says where it sits"
+      (is (= "current" (:state (edge g "jlt-commons/a" "jlt-commons/c"))))
+      (is (= ["aliases" "test" "extra-deps"] (-> (edge g "jlt-commons/a" "jlt-commons/c") :pins first :path))))
     (testing "an untagged dependency pinned off its head is behind"
       (is (= "behind" (:state (edge g "jolt-lang/time" "jolt-lang/d")))))
     (is (= 4 (count (:edges g))) "maven, local and out-of-org coordinates are not edges")
