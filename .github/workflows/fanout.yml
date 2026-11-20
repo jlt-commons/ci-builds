@@ -225,8 +225,28 @@ jobs:
                      2>/dev/null | grep -qi 'install jolt'; then
                   cc="toolchain-unavailable"
                 fi
-                FIN[$p]=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+                # A project can also fail because a dependency would not download
+                # (Maven Central rate limiting or a missing artifact). That is the
+                # registry's problem, not a break in jolt. Read only the failed
+                # jobs' logs. If a log cannot be fetched we have no evidence, so
+                # the run stays a failure.
                 if [ "$cc" = "failure" ]; then
+                  logs=()
+                  for jid in $(gh api "repos/jlt-commons/$p/actions/runs/${RUN[$p]}/jobs" \
+                                 --jq '.jobs[] | select(.conclusion=="failure") | .id' 2>/dev/null); do
+                    if gh api --allow-escape-sequences "repos/jlt-commons/$p/actions/jobs/$jid/logs" \
+                         > "$RES_DIR/$p-$jid.log" 2> "$RES_DIR/$p-$jid.err"; then
+                      logs+=("$RES_DIR/$p-$jid.log")
+                    else
+                      echo "::warning::could not fetch the log of $p job $jid: $(head -c 300 "$RES_DIR/$p-$jid.err")"
+                    fi
+                  done
+                  if [ "${#logs[@]}" -gt 0 ] && download_failure "${logs[@]}"; then
+                    cc="deps-unavailable"
+                  fi
+                fi
+                FIN[$p]=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+                if [ "$cc" = "failure" ] || [ "$cc" = "deps-unavailable" ]; then
                   FSTEP[$p]=$(gh api "repos/jlt-commons/$p/actions/runs/${RUN[$p]}/jobs" \
                     --jq '[.jobs[].steps[]? | select(.conclusion=="failure") | .name] | first // empty' \
                     2>/dev/null || true)
@@ -263,6 +283,7 @@ jobs:
           # Render the table this workflow exists to produce.
           failed=""
           infra=""
+          nodeps=""
           mismatch=""
           : > "$RES_DIR/projects.jsonl"
           {
@@ -280,6 +301,8 @@ jobs:
                          mismatch="$mismatch $p"; failed="$failed $p" ;;
               toolchain-unavailable)
                          icon="**could not install jolt**"; infra="$infra $p" ;;
+              deps-unavailable)
+                         icon="**could not download dependencies**"; infra="$infra $p"; nodeps="$nodeps $p" ;;
               *)         icon="**FAIL** ($c)"; failed="$failed $p" ;;
             esac
             link="-"
@@ -287,7 +310,7 @@ jobs:
             echo "| \`$p\` | $icon | $link |" >> "$GITHUB_STEP_SUMMARY"
             case "$c" in
               success)                          r=pass ;;
-              toolchain-unavailable)            r=infra ;;
+              toolchain-unavailable|deps-unavailable) r=infra ;;
               timed-out)                        r=timed-out ;;
               dispatch-failed|no-run-appeared)  r=dispatch-failed ;;
               mismatch)                         r=mismatch ;;
@@ -305,6 +328,7 @@ jobs:
           done
           failed="${failed# }"
           infra="${infra# }"
+          nodeps="${nodeps# }"
           mismatch="${mismatch# }"
           jq -s --arg requested "$VERSION" --arg sha "$NIGHTLY_SHA" \
                 --arg fin "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
@@ -317,13 +341,26 @@ jobs:
             echo
             [ -n "$mismatch" ] && echo "**Ran on the wrong jolt:** $mismatch"
             [ -n "$failed" ] && echo "**Broken by jolt \`$VERSION\`:** $failed"
-            if [ -n "$infra" ]; then
-              echo "**Could not install jolt \`$VERSION\` for:** $infra"
+            # infra holds both causes. Name the install failures as those that
+            # are in infra but not in nodeps.
+            noinstall=""
+            for p in $infra; do
+              case " $nodeps " in *" $p "*) ;; *) noinstall="$noinstall $p" ;; esac
+            done
+            noinstall="${noinstall# }"
+            if [ -n "$noinstall" ]; then
+              echo "**Could not install jolt \`$VERSION\` for:** $noinstall"
               echo
               echo "That is this fleet's own problem, not a fact about jolt. Usually"
               echo "the version does not exist in the repository being installed"
               echo "from: check each project's \`JOLT_REPO\`, which should be unset"
               echo "unless deliberately pointed at a fork."
+            fi
+            if [ -n "$nodeps" ]; then
+              echo "**Could not download dependencies for:** $nodeps"
+              echo
+              echo "That is a package-registry problem, often Maven Central rate"
+              echo "limiting while several projects build at once, not a fact about jolt."
             fi
             # Counted from PROJECTS rather than written out. The literal said five
             # for as long as there were five, then went on saying it after there

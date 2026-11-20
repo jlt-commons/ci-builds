@@ -53,3 +53,9 @@ logs2() { printf '2026-11-19T01:02:03.0000000Z jolt v%s\n' "$1" > "$BATS_TMPDIR/
 @test "pick: none match reports first" { logs2 0.7.29 0.8.27; run pick_installed 0.8.26 "" "$BATS_TMPDIR/a.log" "$BATS_TMPDIR/b.log"; [ "$status" -eq 1 ]; [ "$output" = "0.7.29" ]; }
 @test "pick: nightly sha in second log" { logs2 0.7.29 0.8.27-241-gdd3c4a4b; run pick_installed nightly dd3c4a4b0123456789abcdef0123456789abcdef "$BATS_TMPDIR/a.log" "$BATS_TMPDIR/b.log"; [ "$status" -eq 0 ]; [ "$output" = "0.8.27-241-gdd3c4a4b" ]; }
 @test "pick: no versions" { printf 'nothing\n' > "$BATS_TMPDIR/a.log"; run pick_installed 0.8.27 "" "$BATS_TMPDIR/a.log"; [ "$status" -eq 1 ]; [ -z "$output" ]; }
+
+@test "download_failure: maven 429"     { run download_failure "$F/log-maven-429.txt"; [ "$status" -eq 0 ]; [ -z "$output" ]; }
+@test "download_failure: maven absent"  { run download_failure "$F/log-maven-absent.txt"; [ "$status" -eq 0 ]; }
+@test "download_failure: test failure"  { run download_failure "$F/log-test-failure.txt"; [ "$status" -eq 1 ]; [ -z "$output" ]; }
+@test "download_failure: any of several logs" { run download_failure "$F/log-test-failure.txt" "$F/log-maven-429.txt"; [ "$status" -eq 0 ]; }
+@test "download_failure: no args"       { run download_failure; [ "$status" -eq 1 ]; }

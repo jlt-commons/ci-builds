@@ -1,0 +1,5 @@
+2026-11-20T01:50:00.0000000Z FAIL in (vec-add-test) (vector_test.clj:12)
+2026-11-20T01:50:00.1000000Z expected: [1 2]
+2026-11-20T01:50:00.2000000Z   actual: [2 1]
+2026-11-20T01:50:01.0000000Z Ran 180 tests. 564 assertions passed, 1 failures, 0 errors.
+2026-11-20T01:50:02.0000000Z ##[error]Process completed with exit code 1.

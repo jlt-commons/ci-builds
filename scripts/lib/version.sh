@@ -76,3 +76,19 @@ uncovered_reason() {
     printf 'ready, not yet in fleet.json\n'
   fi
 }
+
+# download_failure <logfile>...
+# Exits 0 when any log shows a dependency download failure (a package registry
+# refusing or lacking an artifact), otherwise 1. Prints nothing. An unreadable
+# log counts as no match.
+download_failure() {
+  [ "$#" -gt 0 ] || return 1
+  grep -sqF \
+    -e 'status code: 429' \
+    -e 'Too Many Requests' \
+    -e 'Could not transfer artifact' \
+    -e 'Could not find artifact' \
+    -e 'Classpath lookup failed' \
+    -e 'Failed to read artifact descriptor' \
+    -- "$@"
+}
