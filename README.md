@@ -1,7 +1,8 @@
 # ci-builds
 
 Fleet CI for [jlt-commons](https://github.com/jlt-commons): build every project
-against one jolt version and report the result in a single table.
+against the jolt versions that matter, and show the result on one dashboard at
+<https://jlt-commons.github.io/fleet/>.
 
 ## Why
 
@@ -19,146 +20,191 @@ floating to `latest` at the time and silently moved onto it.
 
 ## What it does
 
-`fan-out` does not build anything itself. Every project's own `ci.yml` already
-knows how to build it, and each accepts a `jolt-version` dispatch input that
-overrides its pinned `JOLT_VERSION` for a single run. So `fan-out` dispatches
-those five workflows, waits, and renders the answers:
-
-```
-## jolt `0.8.0` across jlt-commons
-
-| project         | result | run    |
-|-----------------|--------|--------|
-| `glitter`       | pass   | [run]  |
-| `glitter-gl`    | pass   | [run]  |
-| `glitter-uikit` | pass   | [run]  |
-| `raygui-jlt`    | pass   | [run]  |
-| `raylib-jlt`    | pass   | [run]  |
-| `raylib-ios`    | pass   | [run]  |
-
-All 6 projects build against jolt `0.8.0`.
-```
+Nothing here builds a project. Every project's own `ci.yml` already knows how
+to build it, and each accepts a `jolt-version` dispatch input that overrides its
+pinned `JOLT_VERSION` for a single run. `fan-out` dispatches those workflows
+with the version under test, waits for them, and works out one result per
+project. `canary` runs `fan-out` on a schedule against the versions worth
+watching, writes the results to the dashboard's data and keeps one issue open
+while jolt breaks something.
 
 Reusing each project's real gate matters. `raygui-jlt` needs raylib natives,
 `glitter-uikit` needs AppKit and GTK4, `glitter-gl` needs a GL context under
 Xvfb. `raylib-ios` is the odd one: its real target is a phone, which no runner
 can be, so what it contributes here is its pure scene namespaces run under jolt
-on Linux. That still catches a jolt divergence, which is what this is for.
+on Linux. That still catches a jolt divergence, which is what this is for. A
+central rebuild of all that would rot, and would test something other than what
+a contributor hits.
 
-### Adding a project to the fan-out
+The tools are plain Clojure in `src/fleet/`, run by jolt as `jolt <task>`. The
+only shell script left is `scripts/setup-app.sh`. The project list is
+`fleet.json`: a `projects` array, plus an `excluded` map of repositories that
+are deliberately not in it, each with its reason.
 
-Two steps, and the second is not in this repository.
+### fan-out
 
-1. Add it to `PROJECTS` in `.github/workflows/fanout.yml`, and give the project
-   a `ci.yml` that takes a `jolt-version` input and actually builds or tests
-   under jolt. A project whose CI never touches jolt will report a green here
-   that means nothing, which is worse than being absent.
-2. **Add the repository to the `jlt-commons-ci` GitHub App installation.** The
-   App is scoped to selected repositories, and the token the fan-out mints
-   reaches only those. A project in `PROJECTS` but outside the installation
-   fails at dispatch with a 404 that reads like a missing workflow. This is a
-   settings change, at
-   `https://github.com/organizations/jlt-commons/settings/installations`, and no
-   API call in this repository can do it. A central rebuild of all that would rot, and would test something other
-than what a contributor hits.
+`fan-out` takes one version, blank meaning jolt's latest release. It dispatches
+every project's `ci.yml` with `-f jolt-version=X`, polls until each run ends,
+and then checks which jolt each run really used. That check reads the
+`jolt --version` line in each job's log. A release must match the version
+asked for. A nightly reports a version like `0.8.27-241-gdd3c4a4b`, and its
+`-g` commit must be a prefix of the `vnightly` tag's commit. A run that went
+green on some other jolt is a mismatch, never a pass.
 
-`canary` runs `fan-out` against the jolt versions this fleet cares about, opens
-an issue when they break and closes it when a later run passes, so an open
-canary issue means "broken right now" rather than "broke once". Two versions:
+Each project ends in one of these:
 
-| | |
+| result | meaning |
 |---|---|
-| pinned | what the projects pin today, `vars.JOLT_PIN`, default `0.8.1` |
-| latest | jolt's newest published release |
+| pass | the run succeeded and a job installed the requested jolt |
+| fail | the run failed for any other reason, and the failed step is recorded |
+| infra | not about jolt: jolt could not be installed, a dependency could not be downloaded, or a green run's logs could not be read |
+| timed-out | the run did not finish before the deadline |
+| dispatch-failed | GitHub refused the dispatch, and the first line of its error is kept |
+| mismatch | the run succeeded but never ran the requested jolt |
+| not-run | GitHub skipped the run, or it was cancelled, never started or waited on a person |
 
-They are the same while the fleet is current, and the run collapses to one
-build. They diverge the moment jolt ships a release nobody has adopted, which
-is the window worth watching.
+Polling stops at a 45-minute wall-clock deadline. The results go up as a
+`results-<version>` artifact. A manual run of the `fan-out` workflow also adds
+its result to the dashboard's history through `publish-adhoc`, and leaves the
+grid's nightly cells alone.
 
-It ticks hourly and two gates decide whether a tick does anything:
+Dispatch-failed, cancelled and unreadable runs say nothing about jolt, so they
+count as "could not run" and never as a pass or a recovery.
 
-- **interval** — `vars.CANARY_INTERVAL_HOURS`, default `1`. A cron cannot be a
-  variable, GitHub requires a literal, so the schedule ticks hourly and this
-  decides how often a tick is allowed to do work. Measured from the last run
-  that actually built something, since a gated tick still finishes as a
-  successful run and would otherwise reset the clock every hour.
-- **change** — a version set that already passed is not retested. Held in the
-  Actions cache, so there is nothing to commit back and no extra permission.
+### canary
 
-A manual dispatch ignores both.
+`canary` ticks every 15 minutes, at minutes 7, 22, 37 and 52. The odd minutes
+keep it away from the quarter hours, where GitHub's scheduler is busiest and
+most likely to delay or drop a run. Each tick works out a version set, which is
+jolt's latest release plus the nightly when the nightly qualifies:
 
-**Both rows are releases, and jolt's `main` is testable too.** This section
-used to say testing an unreleased jolt would mean building it from source
-against Chez on two operating systems. That stopped being true on 2026-09-02,
-when [jolt-lang/jolt#824](https://github.com/jolt-lang/jolt/pull/824) merged and
-jolt began publishing a rolling `vnightly` prerelease from main. Every project
-already takes a `jolt-version` input, so:
+- The nightly is jolt's rolling `vnightly` prerelease, published since
+  [jolt-lang/jolt#824](https://github.com/jolt-lang/jolt/pull/824). It is
+  dropped when it is older than `vars.NIGHTLY_MAX_AGE_HOURS` (default `48`),
+  because jolt publishes it only after its own downstream-library checks pass.
+  A lagging library withholds the new artifact while the previous `vnightly`
+  stays up and installs perfectly, so a green nightly row could mean "main is
+  healthy" or "main broke on Tuesday and this is Tuesday's binary".
+- It is also dropped when it is the same commit as the release. jolt tags
+  `vnightly` at whatever main was when the job ran, which is often the release
+  tag itself, and one build should not show up as two answers. The canary
+  compares the tags' commits at run time.
+
+What each project pins is not a row. It is read from the project's own latest
+push run on its default branch and shown as the "Own pin" column.
+
+Three gates decide whether a tick tests anything:
+
+- The interval: `vars.CANARY_INTERVAL_HOURS`, default `0`, which means no gate.
+  A cron cannot be a variable, since GitHub requires a literal, so the schedule
+  ticks and this decides how often a tick may do work. It is measured from the
+  last run that built something.
+- The green cache: a version set that already passed is not retested. The
+  Actions cache holds it, so nothing is committed back. The nightly's
+  `published_at` is part of the key. The literal string `nightly` is the same
+  today as yesterday, so without it the first green would cache a key every
+  later run recomputes.
+- The retry backoff: a set that did not pass is tried once per window,
+  `vars.CANARY_RETRY_HOURS` (default `6`). A new version set has a new key and
+  runs on the next tick, while a known-bad one does not dispatch every project
+  every 15 minutes.
+
+A manual dispatch skips all three.
+
+The legs run one version at a time. Each leg dispatches every project's `ci.yml`
+on its default branch, and two legs in flight together would dispatch the same
+project twice within seconds, which cancels the earlier run in any project whose
+concurrency group cancels in progress.
+
+Two more things happen on every tick, including a gated one. The `status` job
+merges the results into the dashboard's data, so the pin column keeps up with
+each project's own CI while jolt stands still. It commits only when the content
+changed or the last commit is 6 hours old, a heartbeat of about 4 commits a day
+that keeps `generated_at` moving, so the dashboard's staleness banner fires only
+when the canary has really stopped. The `report` job opens, updates or closes the
+single issue titled "canary: jolt breaks the fleet". It opens when a project
+fails, mismatches or times out on a version, and closes itself with a recovery
+comment once a later run passes, so an open issue means "broken right now" and
+not "broke once". When every problem is infra, the issue says so and names the
+failed step. Infra covers jolt that could not be installed, a dependency that
+could not be downloaded, a run that could not start (dispatch failed or
+cancelled) and logs that could not be read. None of those is a finding about
+jolt.
+
+The tools run on their own jolt, `vars.TOOLS_JOLT_VERSION` (default `0.8.27`),
+pinned in the workflows and never the jolt under test. A release published
+overnight must not change the thing that measures releases.
+
+## Dashboard
+
+<https://jlt-commons.github.io/fleet/> has one row per project and three
+columns:
+
+| column | what it shows |
+|---|---|
+| Own pin | the project's latest push run on its default branch, with the version its `ci.yml` pins |
+| Latest release | the project built against jolt's newest release |
+| Nightly | the project built against `vnightly`, when the canary tested one |
+
+A cell is one of the results in the fan-out table, shown as "pass", "fail at
+<step>", "could not run: infra", "timed out", "dispatch failed", "ran on the
+wrong jolt" or "not tested yet". Each links to its run, and a row expands to the
+last runs in each column, ad-hoc fan-outs included. The header says which
+release is latest, which nightly commit was tested and how old it is, and when
+the data was generated. After 12 hours without an update the page warns that the
+canary may have stopped. Below the grid, "Not in the fleet yet" lists the
+organization's repositories that no run covers, each with a reason: excluded,
+no `ci.yml`, no `jolt-version` input, or ready but not yet in `fleet.json`.
+
+The data lives on this repository's orphan `status` branch as `status.json` and
+`history.json`, both schema 1. The page fetches them from
+`https://raw.githubusercontent.com/jlt-commons/ci-builds/status/status.json` and
+`.../history.json`. That host sends `Access-Control-Allow-Origin: *` and caches
+for 300 seconds, so the page can lag the branch by up to five minutes. The page
+source is in
+[jlt-commons.github.io](https://github.com/jlt-commons/jlt-commons.github.io),
+not here.
+
+## Using it
+
+To try a candidate jolt across everything, go to Actions, then fan-out, then Run
+workflow, and give it a version (blank means jolt's latest release, `nightly` means
+`vnightly`). Nothing is committed to any project. Each one builds at its own
+HEAD with the version you named, and the result goes into the dashboard's
+history.
 
 ```
 gh workflow run fanout.yml --repo jlt-commons/ci-builds -f jolt-version=nightly
 ```
 
-is the whole thing, no code anywhere. Run [33691047983](https://github.com/jlt-commons/ci-builds/actions/runs/33691047983)
-did exactly that and all five passed.
+To try one project, dispatch that project's own `ci.yml` with the
+`jolt-version` input. It is the same mechanism for one repository.
 
-`nightly` is now a third row in the canary matrix, behind a freshness check
-that is the reason the row can be trusted:
+To run the canary now, dispatch `canary`, optionally with a version. A manual
+dispatch skips the gates.
 
-| | |
-|---|---|
-| pinned | what the projects pin today, `vars.JOLT_PIN`, default `0.8.1` |
-| latest | jolt's newest published release |
-| nightly | jolt's `vnightly` prerelease, when it is fresh enough |
-
-jolt publishes the nightly by staging a draft, deleting the old release, then
-moving the tag, and only after its own downstream-library gates pass. So a
-lagging library withholds the new artifact while the previous `vnightly` stays
-up and installs perfectly. jolt's very first nightly run published nothing at
-all for exactly that reason, with three library suites failing on main against
-the `:jolt/provides` change that v0.8.1 later announced.
-
-Left alone, a green `nightly` row could not distinguish "main is healthy" from
-"main broke on Tuesday and we are still testing Tuesday's binary". So the canary
-reads the release's `published_at`, skips the row when the artifact is older
-than `vars.NIGHTLY_MAX_AGE_HOURS` (default `48`), and stamps the age on every
-result. A skipped row says so in the run log and in the issue body. It never
-passes quietly.
-
-Fresh is not sufficient on its own. jolt tags `vnightly` at whatever main was
-when the nightly job ran, and that is often the release tag itself. On
-2026-09-02 `vnightly` and `v0.8.1` both pointed at `9b768395`, identical and
-three hours old, while main had already moved 7 commits past both. That SHA
-named upstream's line as it stood that day. jolt force-pushed main on
-2026-09-03 and moved both `0.8.x` tags to byte-identical commits, so it no
-longer resolves there, which is the reason the canary compares tags at run time
-rather than trusting an id written down earlier. A row like
-that is fresh, green, and tells you nothing the release row did not already say.
-So the canary compares the nightly's commit against the release rows' commits
-and skips it as redundant when they match, rather than rendering one build as
-two answers.
-
-The `published_at` also goes into the change-gate cache key. The literal string
-`nightly` is the same today as yesterday, so without it the first green would
-cache a key every later run recomputes, and the nightly row would never run
-again however far main moved.
-
-The two release rows need none of this, because a published release is
-immutable once it exists.
-
-## Using it
-
-**Try a candidate jolt across everything.** Actions → fan-out → Run workflow,
-and give it a version (blank means jolt's latest release). Nothing is
-committed anywhere; each project builds at its own HEAD with the version you
-named.
-
-**Try one project.** Dispatch that project's own `ci.yml` with the
-`jolt-version` input. Same mechanism, one repository.
-
-**Adopt a new jolt.** Run `fan-out` against it, then, when green, move each
+To adopt a new jolt, run `fan-out` against it, then, when green, move each
 project's `JOLT_VERSION` pin in one reviewed commit per repository. Moving a
-pin IS the cutover commit for a breaking jolt change, which is the point of
+pin is the cutover commit for a breaking jolt change, which is the point of
 pinning rather than floating.
+
+## Adding a project
+
+1. Give its `ci.yml` a `workflow_dispatch` input named `jolt-version` and a
+   workflow-level `JOLT_VERSION` pin that reads it (see below). A project whose
+   CI never touches jolt would report a green here that means nothing, which is
+   worse than being absent.
+2. Add the repository to the jlt-commons-ci App installation. The App is scoped
+   to selected repositories, and the token the fan-out mints reaches only
+   those. A project outside the installation fails at dispatch with a 404 that
+   reads like a missing workflow. This is a settings change, at
+   `https://github.com/organizations/jlt-commons/settings/installations`, and
+   no API call in this repository can do it.
+3. Add its name to `projects` in `fleet.json`.
+4. Run one fan-out and confirm the project dispatches and reports.
+
+Until step 3, the dashboard lists the repository under "Not in the fleet yet"
+with the reason it is not covered.
 
 ## The pin convention
 
@@ -194,7 +240,7 @@ state the requirement for consumers. See
 
 Runs authenticate as the **jlt-commons-ci** GitHub App, not a personal access
 token. The App is owned by the organization, mints a token that lives one hour
-and reaches exactly six repositories, and is what lets someone trigger a fleet
+and reaches only the repositories the App is installed on, and is what lets someone trigger a fleet
 build without borrowing another person's identity. A PAT would attribute every
 dispatched run to whoever created it and would die with their access.
 
@@ -203,51 +249,60 @@ than organization secrets because this is a free organization, where org
 secrets cover public repositories only, and because the credential's blast
 radius should be the one repository that needs it.
 
-## Setting the App up again
-
-`scripts/setup-app.sh` walks the whole thing: create the App, set its
-permissions, install it, store the credentials in `pass`, create this
-repository, and set its secrets. It is the script that actually created the
-current setup, corrected afterwards for two things it got wrong the first time.
+## Working on it
 
 ```
-bash scripts/setup-app.sh
+jolt test           # run the suite, exit 1 on any failure
+jolt tasks          # list every task with its doc
+jolt nrepl-server   # a REPL for editors, writes .nrepl-port
 ```
 
-It is idempotent enough to re-run: stage 1 asks whether the App already exists
-and skips creation if so, and stage 5 detects this repository and moves on. You
-would need it to rotate the private key, to rebuild the App after an uninstall,
-or to set the same thing up for another organization.
+The tasks are in `deps.edn`: `test`, and the `fleet:` tools the workflows call
+(`fleet:own-pin`, `fleet:uncovered`, `fleet:status`, `fleet:refresh`,
+`fleet:publish`, `fleet:fanout`, `fleet:plan`, `fleet:report`). The prefix keeps
+them clear of jolt's own subcommands. Code is in `src/fleet/` and tests in
+`test/fleet/`. The ones that touch GitHub take `GH_TOKEN` from the environment,
+and the network sits behind injected functions, so the suite runs offline.
 
-Two things it records that are easy to get wrong:
-
-- The workflows authenticate with the App's **Client ID**, not its App ID.
-  `create-github-app-token@v3` deprecates the `app-id` input, so a setup that
-  only captures the App ID produces credentials the workflows cannot use.
-- `pass` **auto-commits** every entry it writes but never pushes. The
-  credentials are not backed up until `git -C ~/dev/b12n-pass push`.
-
-## Adding a project
-
-1. Give it a `workflow_dispatch` input named `jolt-version` and a
-   workflow-level `JOLT_VERSION` pin that reads it.
-2. Add the repository to the jlt-commons-ci App installation.
-3. Add its name to `PROJECTS` in `.github/workflows/fanout.yml`.
+Two jolts are involved. The tools run on the tool jolt, pinned as
+`TOOLS_JOLT_VERSION` in each workflow, with `vars.TOOLS_JOLT_VERSION` as an
+override. The jolt under test is only ever a `jolt-version` input to a project's
+`ci.yml`. Locally, whatever `jolt` is on your path runs the tools, so a new
+release can change the tools' behavior on your machine before it does in CI.
 
 ## Known gaps
 
-- **The canary polls rather than being told.** A `repository_dispatch` from
-  `jolt-lang/jolt` on release would be the better signal, but jolt is a
-  different organization where we are read-only, so that change is not ours to
-  make. Worth asking about.
-- **`glitter-gl` has a shim a single pin cannot fully exercise.**
+- The cron runs less often than it says. GitHub ran the old hourly cron
+  only 3 to 4 times a day between 2026-11-10 and 2026-11-19. That is why the
+  canary ticks every 15 minutes, and the real rate under the new schedule is
+  still unmeasured. Check it a week after this merges, from the run history of
+  `canary`, and move the schedule again if ticks still go missing.
+- The canary polls rather than being told. Jolt publishes a release every
+  few days, plus a nightly, and a poll notices within a tick or two at best. A
+  `repository_dispatch` step in jolt's release workflow would make it
+  immediate. That is a request to jolt's maintainer, since jolt is a different
+  organization where we are read-only.
+- Two demos are excluded. `raylib-jolt-demo` and `raylib-ios-demo` wait on
+  the jlt-commons-ci App installation, because until they are installed they
+  fail at dispatch and would open a false issue. They show under "Not in the
+  fleet yet". `fleet.json` lists the other exclusions.
+- A repository without a `jolt-version` input cannot join. It is listed as
+  "Not in the fleet yet" until its `ci.yml` takes one.
+- A stale nightly drops the nightly row. Past 48 hours the canary stops
+  testing it, which also means an open issue about a nightly failure can close
+  as recovered while the project is still broken on main.
+- A permanently unreadable project keeps its last cell. When a collector
+  cannot read a project, the dashboard keeps the previous cell and reason and
+  warns on stderr, with no age limit, so the page can show an old good result
+  for a project whose runs have become unreadable.
+- `glitter-gl` has a shim a single pin cannot fully exercise.
   `glitter-gl.ffi-compat` resolves `ffi/write`'s argument order at load and has
   two branches; a run pinned to one jolt only ever takes one of them. A
   two-entry matrix over an old and a new jolt would cover both.
-- **`PROJECTS` is a hardcoded list**, so a new repository is invisible until
-  someone edits the workflow. Deliberate for now: discovery by topic or by
-  listing the App's installation would be quieter but would also silently
-  change what the canary covers.
+- `fleet.json` is a hardcoded list, so a new repository is invisible to the
+  fan-out until someone edits it. The dashboard still lists it under "Not in the
+  fleet yet". Discovery by topic or by the App's installation would be quieter
+  but would also silently change what the canary covers.
 
 ## Licence
 
