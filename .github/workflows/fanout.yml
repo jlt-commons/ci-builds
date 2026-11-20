@@ -159,9 +159,6 @@ jobs:
           CANARY_RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
-          tag="$(gh api repos/jolt-lang/jolt/releases/latest --jq .tag_name)"
-          [ -n "$tag" ] || { echo "could not resolve jolt's latest release" >&2; exit 1; }
-          export LATEST="${tag#v}"
           # fleet:publish refreshes in-process on every attempt (R27), so the
           # results files are plain arguments.
           if [ -d results ]; then

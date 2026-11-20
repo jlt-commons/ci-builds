@@ -122,7 +122,8 @@
         gh    (gh-of deps)]
     {:out-dir       out-dir
      :prev-dir      (get env "PREV_DIR")
-     :latest        (get env "LATEST")
+     :latest        (or (not-empty (get env "LATEST"))
+                        (fanout/resolve-version gh ""))
      :nightly       (parse-nightly (get env "NIGHTLY_JSON"))
      :canary-run    (get env "CANARY_RUN")
      :results-files (vec results)
@@ -132,11 +133,11 @@
 
 (defn refresh-main
   "fleet:refresh: collect, build and write <out-dir>/status.json and
-  history.json. Env: LATEST, NIGHTLY_JSON, CANARY_RUN (required), PREV_DIR,
+  history.json. Env: NIGHTLY_JSON, CANARY_RUN (required), LATEST (default: jolt's latest release via the GitHub client), PREV_DIR,
   FLEET_JSON, GH_TOKEN."
   ([args] (refresh-main args (into {} (System/getenv)) {}))
   ([args env deps]
-   (if-let [v (require-env env ["LATEST" "NIGHTLY_JSON" "CANARY_RUN"])]
+   (if-let [v (require-env env ["NIGHTLY_JSON" "CANARY_RUN"])]
      (do (err (str "refresh-status: " v " is required")) (usage-error refresh-usage nil))
      (if (empty? args)
        (usage-error refresh-usage nil)
@@ -147,7 +148,7 @@
   in-process on every attempt, then commits to origin's status branch."
   ([args] (publish-main args (into {} (System/getenv)) {}))
   ([args env deps]
-   (if-let [v (require-env env ["LATEST" "NIGHTLY_JSON" "CANARY_RUN"])]
+   (if-let [v (require-env env ["NIGHTLY_JSON" "CANARY_RUN"])]
      (do (err (str "publish-status: " v " is required"))
          (usage-error "publish <out-dir> [results.json ...]   (env: LATEST NIGHTLY_JSON CANARY_RUN)" nil))
      (if (empty? args)

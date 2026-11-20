@@ -67,7 +67,7 @@
 (defn- failed-steps
   "Names of every failed step across the jobs, in job then step order."
   [jobs]
-  (for [j jobs, s (:steps j) :when (= "failure" (:conclusion s))] (:name s)))
+  (for [j jobs, s (when (sequential? (:steps j)) (:steps j)) :when (= "failure" (:conclusion s))] (str (:name s))))
 
 (defn- deps-unavailable?
   "R24: every failed job's log was fetched and each shows a download failure
@@ -292,7 +292,7 @@
                                 (if-let [id (get found pr)]
                                   (assoc d pr {:run-id id})
                                   (do (log (str "  " pr ": no run appeared within the window"))
-                                      (assoc d pr {:detail "no-run-appeared"}))))
+                                      (assoc d pr {:detail "no-run-appeared" :result "dispatch-failed"}))))
                               dispatched need)]
             (log "::endgroup::")
             out)))))
@@ -344,7 +344,12 @@
                                     run  (try ((:get-json gh) (str "repos/" org "/" pr "/actions/runs/" id))
                                               (catch Exception _ nil))]
                                 (if (= "completed" (:status run))
-                                  (let [v (finish ctx pr id (:conclusion run))]
+                                  (let [v (try (finish ctx pr id (:conclusion run))
+                                               (catch Exception e
+                                                 ;; One project's bad payload must not drop the others' results.
+                                                 (warn (str "could not classify " pr " run " id ": " (ex-message e)))
+                                                 {:result "fail" :detail "error" :installed nil
+                                                  :failed-step nil :cause nil :finished-at ((:now ctx))}))]
                                     (log (str "  " pr ": " (:detail v)
                                               (when (:installed v) (str " (jolt " (:installed v) ")"))))
                                     {:pending pending :done (assoc done pr v)})
@@ -389,7 +394,7 @@
                                      :cause nil :finished-at nil}
                                     (cond
                                       v   v
-                                      (:detail d) {:result (:detail d) :detail (:detail d)}
+                                      (:detail d) {:result (or (:result d) (:detail d)) :detail (:detail d)}
                                       :else {:result "timed-out" :detail "timed-out"}))))
                          projects)
         {:keys [failed infra]} (split-names rows)

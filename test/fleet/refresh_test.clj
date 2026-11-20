@@ -35,13 +35,13 @@
       (is (= ["ebb" "glitter" "raygui-jlt"] (sort (map :name (:projects s)))))
       (is (= 1 (:schema h))))))
 
-(deftest refresh-needs-latest
+(deftest refresh-needs-canary-run
   (let [out (str (tmp-dir) "/out")
         err (StringWriter.)
         rc  (binding [*err* err]
-              (cli/refresh-main [out] {"NIGHTLY_JSON" "null" "CANARY_RUN" "x"} {}))]
+              (cli/refresh-main [out] {"NIGHTLY_JSON" "null"} {}))]
     (is (= 2 rc))
-    (is (re-find #"LATEST" (str err)))
+    (is (re-find #"CANARY_RUN" (str err)))
     (is (not (fs/exists? out)))))
 
 (deftest two-publishes-differing-only-in-clock-and-canary-run-make-one-commit

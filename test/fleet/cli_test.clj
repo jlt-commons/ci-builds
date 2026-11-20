@@ -131,3 +131,31 @@
   (let [r (run #(cli/fanout-main ["0.8.27"] {"FLEET_JSON" "/nonexistent/fleet.json"} {}))]
     (is (= 1 (:rc r)))
     (is (str/includes? (:err r) "fanout: cannot read /nonexistent/fleet.json"))))
+
+(deftest refresh-without-latest-asks-the-client-and-strips-the-v
+  (let [d    (tmp-dir)
+        asked (atom [])
+        gh   {:get-json (fn [path]
+                          (swap! asked conj path)
+                          (if (= "repos/jolt-lang/jolt/releases/latest" path)
+                            {:tag_name "v0.9.4"}
+                            (throw (ex-info "no" {:status 404}))))
+              :get-raw (fn [_] (throw (ex-info "no" {:status 404})))
+              :get-paginated (fn [_] [])}
+        env  {"NIGHTLY_JSON" "null" "CANARY_RUN" "https://example/run/1"
+              "FLEET_JSON" (write! d "fleet.json" "{\"projects\":[],\"excluded\":{}}")}
+        r    (run #(cli/refresh-main [(str d "/out")] env {:gh gh}))]
+    (is (= 0 (:rc r)))
+    (is (= ["repos/jolt-lang/jolt/releases/latest"] @asked))
+    (is (str/includes? (slurp (str d "/out/status.json")) "0.9.4"))
+    (is (not (str/includes? (slurp (str d "/out/status.json")) "v0.9.4")))))
+
+(deftest refresh-with-latest-set-does-not-ask
+  (let [d   (tmp-dir)
+        gh  {:get-json (fn [path] (throw (ex-info (str "unexpected " path) {:status 404})))
+             :get-raw (fn [_] (throw (ex-info "no" {:status 404})))
+             :get-paginated (fn [_] [])}
+        env {"LATEST" "0.8.27" "NIGHTLY_JSON" "null" "CANARY_RUN" "x"
+             "FLEET_JSON" (write! d "fleet.json" "{\"projects\":[],\"excluded\":{}}")}
+        r   (run #(cli/refresh-main [(str d "/out")] env {:gh gh}))]
+    (is (= 0 (:rc r)))))

@@ -329,3 +329,65 @@
     (is (= "0.9.1" (:requested (:results r))))
     (is (str/includes? (:output r) "version=0.9.1\n"))
     (is (= "jolt-version=0.9.1" (nth (second (first (filter #(= :sh (first %)) @(:calls w)))) 7)))))
+
+(deftest run-a-fallback-that-finds-no-run-is-dispatch-failed-and-failed
+  (let [w (-> (fake-world {:print-url? false
+                           :runs {"beta" [ok-run]}
+                           :jobs {"beta" [(job 2 "success")]}
+                           :logs {2 (jolt-log "0.8.27")}})
+              (update :gh assoc :get-json
+                      (let [base (:get-json (:gh (fake-world {:print-url? false
+                                                              :runs {"beta" [ok-run]}
+                                                              :jobs {"beta" [(job 2 "success")]}
+                                                              :logs {2 (jolt-log "0.8.27")}})))]
+                        (fn [path]
+                          (if (str/includes? path "/alpha/actions/workflows/")
+                            {:workflow_runs []}
+                            (base path))))))
+        r (run-fake w "0.8.27")
+        a (first (:projects (:results r)))]
+    (is (= 1 (:rc r)))
+    (is (= {:result "dispatch-failed" :run_url nil} (select-keys a [:result :run_url])))
+    (is (str/includes? (:output r) "failed=alpha\n"))
+    (is (str/includes? (:summary r) "| `alpha` | **FAIL** (no-run-appeared) | - |"))
+    (is (str/includes? (:summary r) "**Broken by jolt `0.8.27`:** alpha"))
+    (is (not (str/includes? (:summary r) "All ")))))
+
+(deftest run-one-malformed-project-is-fail-and_does_not_drop_the_others
+  (let [w (fake-world {:runs {"alpha" [{:status "completed" :conclusion "failure"}] "beta" [ok-run]}
+                       :jobs {"alpha" [{:id 1 :conclusion "failure" :steps 42}]
+                              "beta" [(job 2 "success")]}
+                       :logs {1 "x" 2 (jolt-log "0.8.27")}})
+        w (update w :gh assoc :get-json
+                  (let [base (:get-json (:gh w))]
+                    (fn [path]
+                      (if (str/includes? path "/alpha/actions/runs/101/jobs")
+                        (throw (ex-info "boom secret-data" {:token "SECRET"}))
+                        (base path)))))
+        r (run-fake w "0.8.27")]
+    (is (= 1 (:rc r)))
+    (is (= [{:name "alpha" :result "fail" :failed_step nil}
+            {:name "beta" :result "pass" :failed_step nil}]
+           (mapv #(select-keys % [:name :result :failed_step]) (:projects (:results r)))))
+    (is (str/includes? (:output r) "failed=alpha\n"))))
+
+(deftest run-an-exception-while-classifying-is-fail-with-a-warning-without-ex-data
+  (let [w (fake-world {:runs {"alpha" [{:status "completed" :conclusion "failure"}] "beta" [ok-run]}
+                       :jobs {"alpha" [(job 1 "failure" [(step nil "failure")])]
+                              "beta" [(job 2 "success")]}
+                       :logs {1 "x" 2 (jolt-log "0.8.27")}})
+        w (update w :gh assoc :get-redirected-log
+                  (let [base (:get-redirected-log (:gh w))]
+                    (fn [path]
+                      (if (str/includes? path "/jobs/1/")
+                        (throw (RuntimeException. "log layer exploded"))
+                        (base path)))))
+        r (run-fake w "0.8.27")]
+    (is (= 1 (:rc r)))
+    (is (= ["fail" "pass"] (mapv :result (:projects (:results r)))))))
+
+(deftest classify-tolerates-malformed-steps
+  (is (= "fail" (:result (fanout/classify {:requested "1" :conclusion "failure"
+                                           :jobs [{:id 1 :conclusion "failure" :steps 42}
+                                                  {:id 2 :conclusion "failure" :steps [{:conclusion "failure"}]}]
+                                           :logs {1 "x" 2 "x"}})))))
