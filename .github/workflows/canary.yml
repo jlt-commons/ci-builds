@@ -131,6 +131,7 @@ jobs:
           nightly_pub=""
           nightly=""
           nightly_json=null
+          nightly_note=""
           nsha=""
 
           # Resolved on every event, a manual dispatch included, because the
@@ -203,13 +204,17 @@ jobs:
                 else
                   nightly_pub="$pub"
                   nightly="nightly published $pub, ${age}h old, at ${nsha:0:8}"
+                  # The note that reaches status.json must be the same on every
+                  # tick for this nightly, or each tick would commit. No age:
+                  # the page works it out from published_at.
+                  nightly_note="nightly published $pub at ${nsha:0:8}"
                 fi
               fi
             fi
 
             if [ -n "$nightly_pub" ]; then
               set -- "$@" "nightly"
-              nightly_json="$(jq -nc --arg p "$nightly_pub" --arg s "$nsha" --arg n "$nightly" \
+              nightly_json="$(jq -nc --arg p "$nightly_pub" --arg s "$nsha" --arg n "$nightly_note" \
                                 '{published_at: $p, sha: $s, note: $n}')"
             fi
             versions="[$(printf '"%s",' "$@" | sed 's/,$//')]"
@@ -374,8 +379,10 @@ jobs:
           owner: jlt-commons
 
       # Reusable-workflow artifacts belong to this (the caller's) run. A gated
-      # tick has none, which downloads nothing and is not an error.
+      # tick has none, so the step is skipped there rather than trusting the
+      # action to treat "no match" as success; the script copes with no results.
       - uses: actions/download-artifact@v8
+        if: needs.fleet.result != 'skipped'
         with:
           pattern: results-*
           path: results
@@ -418,6 +425,7 @@ jobs:
       # needs.fleet.outputs.failed holds one matrix leg's value, so the verdict
       # is read from every leg's results file instead.
       - uses: actions/download-artifact@v8
+        if: needs.fleet.result != 'skipped'
         with:
           pattern: results-*
           path: results
