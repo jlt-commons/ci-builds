@@ -1,6 +1,6 @@
 (ns fleet.status-test
   (:require [cheshire.core :as json]
-            [clojure.test :refer [deftest is]]
+            [clojure.test :refer [deftest is testing]]
             [fleet.status :as status]))
 
 (defn- fx
@@ -194,10 +194,70 @@
 
 (deftest unchanged-ignores-generated-at-and-canary-run
   (let [s (:status (run-bs {}))]
-    (is (true? (status/unchanged? s (assoc s :generated_at "2030-01-01T00:00:00Z"
+    (is (true? (status/unchanged? s (assoc s :generated_at "2026-11-20T05:00:00Z"
                                            :canary_run "https://example/run/2"))))
     (is (false? (status/unchanged? s (assoc-in s [:jolt :latest :version] "0.8.28"))))
     (is (false? (status/unchanged? s (assoc s :uncovered []))))))
+
+(deftest r39-heartbeat-both-sides-of-6h
+  ;; run-bs generates at 2026-11-20T04:00:00Z
+  (let [s (:status (run-bs {}))
+        at (fn [t] (assoc s :generated_at t))]
+    (is (true? (status/unchanged? s (at "2026-11-20T09:59:59Z"))))
+    (is (false? (status/unchanged? s (at "2026-11-20T10:00:00Z"))))
+    (is (false? (status/unchanged? s (at "2026-11-21T04:00:00Z"))))
+    (testing "an unparseable timestamp publishes"
+      (is (false? (status/unchanged? (assoc s :generated_at "soon") s))))))
+
+(defn- own-row [pin result url & {:as more}]
+  (merge {:name "glitter" :pin pin :result result :run_url url :finished_at nil :failed_step nil} more))
+
+(defn- seq-build
+  "Feed builds one after another, each from the previous output. rows: one
+  own-pin row vector per build."
+  [rows]
+  (reduce (fn [{:keys [status history]} op]
+            (status/build {:prev-status status :prev-history history :own-pin op
+                           :uncovered [] :latest "0.8.27" :nightly nil
+                           :canary-run "r" :now "2026-11-20T04:00:00Z" :results []}))
+          {} rows))
+
+(deftest r38-outage-recovery-keeps-the-pin-cell-and-adds-no-bogus-history
+  (let [pass1 (own-row "0.8.24" "pass" "https://r/1")
+        outage (own-row nil "not-run" nil :unreadable true)
+        pass2 (own-row "0.8.24" "pass" "https://r/2")
+        step (fn [rows] (let [o (seq-build rows)]
+                          {:cell (get-in o [:status :projects 0 :cells :pin])
+                           :pin  (get-in o [:status :projects 0 :pin])
+                           :hist (mapv :result (get-in o [:history :projects :glitter :pin]))
+                           :urls (mapv :run_url (get-in o [:history :projects :glitter :pin]))}))
+        after-outage (step [[pass1] [outage]])]
+    (testing "during the outage the previous pin cell and pin stay"
+      (is (= "pass" (:result (:cell after-outage))))
+      (is (= "https://r/1" (:run_url (:cell after-outage))))
+      (is (= "0.8.24" (:pin after-outage)))
+      (is (= ["https://r/1"] (:urls after-outage))))
+    (testing "pass, outage, pass, pass: history is the two passes only"
+      (let [o (step [[pass1] [outage] [pass2] [pass2]])]
+        (is (= ["https://r/2" "https://r/1"] (:urls o)))
+        (is (= ["pass" "pass"] (:hist o)))
+        (is (= "https://r/2" (:run_url (:cell o))))))
+    (testing "an outage on the very first build has nothing to carry and no history"
+      (let [o (step [[outage]])]
+        (is (= [] (:hist o)))))))
+
+(deftest r38-an-unreadable-uncovered-row-keeps-its-previous-reason
+  (let [prev (assoc (:status (run-bs {})) :uncovered [{:name "duratom" :reason "ci.yml has no jolt-version input"}
+                                                      {:name "other" :reason "ready, not yet in fleet.json"}])
+        out  (status/build {:prev-status prev :prev-history nil :own-pin (fx "own-pin.json")
+                            :uncovered [{:name "duratom" :reason "could not read repository" :unreadable true}
+                                        {:name "other" :reason "ready, not yet in fleet.json"}
+                                        {:name "newrepo" :reason "could not read repository" :unreadable true}]
+                            :latest "0.8.27" :nightly nil :canary-run "r" :now "2026-11-20T04:00:00Z" :results []})]
+    (is (= [{:name "duratom" :reason "ci.yml has no jolt-version input"}
+            {:name "other" :reason "ready, not yet in fleet.json"}
+            {:name "newrepo" :reason "could not read repository"}]
+           (get-in out [:status :uncovered])))))
 
 (deftest nil-pin-is-accepted-and-the-project-still-appears
   ;; R26: a project with a non-literal JOLT_VERSION has pin nil. It must not

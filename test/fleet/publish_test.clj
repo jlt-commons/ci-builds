@@ -4,7 +4,7 @@
   (:require [babashka.fs :as fs]
             [cheshire.core :as json]
             [clojure.string :as str]
-            [clojure.test :refer [deftest is]]
+            [clojure.test :refer [deftest is testing]]
             [fleet.publish :as publish]))
 
 (defn- git
@@ -37,14 +37,22 @@
 
 (defn- write-json! [path m] (spit path (json/generate-string m)))
 
+(defn- rebuild-at
+  "A rebuild that writes the same content each time except generated_at (the
+  given ISO instant) and canary_run."
+  [generated-at]
+  (fn [{:keys [out-dir]}]
+    (fs/create-dirs out-dir)
+    (write-json! (str out-dir "/status.json")
+                 {:schema 1 :generated_at generated-at :canary_run (str "run-" (System/nanoTime))
+                  :projects ["a"]})
+    (write-json! (str out-dir "/history.json") {:schema 1 :adhoc []})))
+
 (defn- rebuild-fixed
-  "Writes the same content each time except generated_at and canary_run."
-  [{:keys [out-dir]}]
-  (fs/create-dirs out-dir)
-  (write-json! (str out-dir "/status.json")
-               {:schema 1 :generated_at (str (System/nanoTime)) :canary_run (str "run-" (System/nanoTime))
-                :projects ["a"]})
-  (write-json! (str out-dir "/history.json") {:schema 1 :adhoc []}))
+  "Same content each time, generated_at is the current instant (seconds
+  apart, well inside the heartbeat)."
+  [dirs]
+  ((rebuild-at (str (java.time.Instant/now))) dirs))
 
 (defn- pub [{:keys [work out]} rebuild]
   (publish/publish! {:repo-dir work :out-dir out :rebuild rebuild :sh publish/sh}))
@@ -72,6 +80,23 @@
         res (pub r rebuild-fixed)]
     (is (= :unchanged (:result res)))
     (is (= before (remote-head r)))))
+
+(deftest r39-heartbeat-publishes-an-unchanged-status-once-it-is-6h-old
+  (testing "5h59m59s later: still unchanged"
+    (let [r (repo)
+          _ (pub r (rebuild-at "2026-11-20T00:00:00Z"))
+          before (remote-head r)
+          res (pub r (rebuild-at "2026-11-20T05:59:59Z"))]
+      (is (= :unchanged (:result res)))
+      (is (= before (remote-head r)))))
+  (testing "exactly 6h later: a commit that only moves generated_at"
+    (let [r (repo)
+          _ (pub r (rebuild-at "2026-11-20T00:00:00Z"))
+          before (remote-head r)
+          res (pub r (rebuild-at "2026-11-20T06:00:00Z"))]
+      (is (= :published (:result res)))
+      (is (not= before (remote-head r)))
+      (is (= "2026-11-20T06:00:00Z" (:generated_at (remote-show r "status.json")))))))
 
 (deftest commits-when-history-changes
   (let [r (repo)

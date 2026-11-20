@@ -107,10 +107,23 @@
 (deftest own-pin-failing-api-is-not-run-warns-and-does-not-abort
   (let [[rows err] (warnings-of #(own* (world)))]
     (is (= {:name "ghost" :pin nil :result "not-run"
-            :run_url nil :finished_at nil :failed_step nil}
+            :run_url nil :finished_at nil :failed_step nil :unreadable true}
            (by-name rows "ghost")))
     (is (str/includes? err "ghost"))
     (is (= 4 (count rows)))))
+
+(deftest r38-own-pin-marks-only-reads-that-failed-as-unreadable
+  (testing "a project with no completed push run is a real not-run"
+    (is (not (:unreadable (by-name (own (world)) "glitter-uikit")))))
+  (testing "a failing run list is unreadable and keeps the pin it did read"
+    (let [w (-> (world)
+                (assoc-in [:branch "zz"] "main")
+                (assoc-in [:ci "zz"] "name: ci\nenv:\n  JOLT_VERSION: \"0.8.24\"\n"))
+          row (by-name (own w {:projects ["zz"] :excluded {}}) "zz")]
+      (is (true? (:unreadable row)))
+      (is (= "not-run" (:result row)))))
+  (testing "a readable row carries no marker"
+    (is (not (contains? (by-name (own (world)) "glitter") :unreadable)))))
 
 (deftest own-pin-conclusion-mapping
   (doseq [[conclusion result] [["success" "pass"] ["failure" "fail"] ["timed_out" "timed-out"]
@@ -135,7 +148,7 @@
                             :else (throw (not-found path)))))
         [rows err] (warnings-of #(collect/own-pin gh {:projects ["glitter-gl"] :excluded {}}))]
     (is (= [{:name "glitter-gl" :pin "0.8.24" :result "not-run"
-             :run_url nil :finished_at nil :failed_step nil}]
+             :run_url nil :finished_at nil :failed_step nil :unreadable true}]
            rows))
     (is (str/includes? err "glitter-gl"))))
 
@@ -153,6 +166,10 @@
 (deftest uncovered-unreadable-repo-gets-a-reason-and-a-warning
   (let [[rows err] (warnings-of #(unc* (world)))]
     (is (= "could not read repository" (:reason (by-name rows "brokenrepo"))))
+    (is (true? (:unreadable (by-name rows "brokenrepo"))))
+    (is (true? (:unreadable (by-name rows "ratelimited"))))
+    (testing "an unparsable ci.yml is a content problem, not an outage"
+      (is (not (:unreadable (by-name rows "badyaml")))))
     (is (str/includes? err "brokenrepo"))))
 
 (deftest uncovered-on-key-parsed-as-boolean-true-still-finds-the-input

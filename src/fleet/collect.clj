@@ -3,7 +3,9 @@
   pin, and the org repos the fleet does not cover. gh is a map of the
   fleet.github fns ({:get-json :get-raw :get-paginated}), so tests stub it.
   Any failure to read one repo degrades that repo's row and warns on stderr;
-  it never aborts the collection."
+  it never aborts the collection. A row whose read failed carries
+  :unreadable true (R38), which tells the status build to keep that project's
+  previous cell or reason instead of recording the outage as a result."
   (:require [clojure.string :as str]
             [fleet.version :as version]
             [jolt.yaml :as yaml]))
@@ -23,6 +25,12 @@
 
 (defn- run-row [name pin result run-url at step]
   {:name name :pin pin :result result :run_url run-url :finished_at at :failed_step step})
+
+(defn- unreadable-row
+  "A row for a project whose run could not be read: not-run, and marked so the
+  build does not mistake the outage for a result."
+  [name pin]
+  (assoc (run-row name pin "not-run" nil nil nil) :unreadable true))
 
 (defn- conclusion->result [conclusion]
   (case conclusion
@@ -50,7 +58,7 @@
                       (warn "collect-own-pin" p "could not read repository:" (explain e))
                       nil))]
     (if-not branch
-      (run-row p nil "not-run" nil nil nil)
+      (unreadable-row p nil)
       (let [pin  (try (version/parse-pin ((:get-raw gh) (ci-path p)))
                       (catch Exception e
                         (warn "collect-own-pin" p "could not read ci.yml:" (explain e))
@@ -64,7 +72,7 @@
                         (warn "collect-own-pin" p "could not list runs:" (explain e))
                         ::failed))]
         (cond
-          (= ::failed runs) (run-row p pin "not-run" nil nil nil)
+          (= ::failed runs) (unreadable-row p pin)
           (empty? runs)     (run-row p pin "not-run" nil nil nil)
           :else
           (let [r      (first runs)
@@ -89,7 +97,10 @@
 
 (def ^:private unreadable "could not read repository")
 
-(defn- reason-for [gh fleet p]
+(defn- reason-for
+  "The uncovered reason for repo p, nil when it is covered. A string, or the
+  keyword ::unreadable when the repository could not be read at all (R38)."
+  [gh fleet p]
   (let [in-fleet? (boolean (some #{p} (:projects fleet)))
         excluded  (get (:excluded fleet) (keyword p))]
     (if (or in-fleet? (seq excluded))
@@ -101,7 +112,7 @@
                         (do (warn "collect-uncovered" p unreadable ":" (explain e))
                             {:error true}))))]
         (cond
-          (:error ci)   unreadable
+          (:error ci)   ::unreadable
           (:missing ci) (version/uncovered-reason {:has-ci? false})
           :else
           (try (version/uncovered-reason {:has-ci? true :has-input? (has-input? (yaml/load (:text ci)))})
@@ -111,11 +122,14 @@
 
 (defn uncovered
   "Public, non-archived org repos the fleet does not cover, each with a
-  reason: [{:name :reason}]."
+  reason: [{:name :reason}]. A repo that could not be read has the reason
+  \"could not read repository\" and :unreadable true (R38)."
   [gh fleet]
   (->> ((:get-paginated gh) (str "orgs/" org "/repos?type=public"))
        (filter #(and (not (:archived %)) (not (:private %))))
        (keep (fn [{:keys [name]}]
                (when-let [r (reason-for gh fleet name)]
-                 {:name name :reason r})))
+                 (if (= ::unreadable r)
+                   {:name name :reason unreadable :unreadable true}
+                   {:name name :reason r}))))
        vec))

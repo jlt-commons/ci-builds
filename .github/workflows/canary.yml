@@ -21,8 +21,12 @@ name: canary
 #
 # Every run also ends with the `status` job, which merges the results into
 # status.json and history.json on the `status` branch. The fleet page reads
-# those two files. A gated tick still runs it, so the pin column and the
-# dashboard's timestamp keep moving while jolt stands still.
+# those two files. A gated tick still runs it, so the pin column keeps up with
+# each project's own CI while jolt stands still. Publishing commits only when
+# the content changed, or when the last commit is 6 or more hours old (a
+# heartbeat, about 4 commits a day), so the dashboard's generated_at moves at
+# least that often and its 12 hour staleness banner fires only when the canary
+# has really stopped.
 #
 # vars.CANARY_INTERVAL_HOURS (default 0, no interval gate) holds a scheduled
 # tick back. The cron itself cannot be a variable, GitHub requires a literal.
