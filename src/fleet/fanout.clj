@@ -33,16 +33,19 @@
   - mismatch: the run succeeded but no job's `jolt --version` is the
     requested one (nightly republished between resolve and install, or a
     project ignoring the input). Never reported as pass.
-  - infra: a failed run whose cause is not jolt. Two causes. Either the
-    install-jolt step failed (measured 2026-09-02: JOLT_REPO was left
-    pointing at a fork that publishes only nightlies, so asking for 0.8.0
-    gave curl 404 and two scheduled canaries called the fleet broken), or
-    every failed job's failed step shows a dependency download failure
-    (R21/R24, Maven Central 429s and missing artifacts). The failed step is
-    recorded for both (R25).
+  - infra: a run whose cause is not jolt. Three causes. The install-jolt step
+    failed (JOLT_REPO left pointing at a fork that publishes only nightlies
+    makes a requested release a curl 404), or every failed job's failed step
+    shows a dependency download failure (R21/R24, Maven Central 429s and
+    missing artifacts), or a green run's logs could not be read after two
+    tries, so which jolt it ran is unknown (I1). The failed step is recorded
+    for each (R25).
   - fail: any other non-success conclusion. timed-out and dispatch-failed
-    come from this loop, not from GitHub.
-  - not-run: GitHub concluded `skipped` (R5).
+    come from this loop, not from GitHub. A dispatch-failed row carries the
+    first line gh printed as its failed step (R33).
+  - not-run: GitHub concluded `skipped` (R5), or the run was `cancelled`,
+    never started (`startup_failure`) or waited on a person
+    (`action_required`), none of which says anything about jolt (R37).
 
   IO sits behind injected fns, so a test drives a whole fan-out with no
   network and no sleeping: gh (the fleet.github client map), sh, env, sleep
@@ -58,7 +61,7 @@
 
 (def ^:private jolt-repo "repos/jolt-lang/jolt")
 
-(def ^:private poll-tries 150)
+(def ^:private poll-window-ms (* 45 60 1000))
 (def ^:private poll-interval-ms 20000)
 
 ;; ---------------------------------------------------------------------------
@@ -80,23 +83,45 @@
                   (every? some? texts)
                   (version/download-failure? texts)))))
 
+(def ^:private unreadable-logs "could not read logs")
+
 (defn classify
   "One finished run to {:result :installed :failed-step :cause :detail}.
 
   conclusion is GitHub's. jobs are the run's job maps ({:id :conclusion
   :steps [{:name :conclusion}]}). logs maps job id to log text, nil for a log
-  that could not be fetched. :cause is :install or :deps for infra, else
-  nil. :detail is the conclusion, kept for the table's FAIL (x) text."
+  that could not be fetched. :cause is :install, :deps or :logs for infra,
+  else nil. :detail is the conclusion, kept for the table's FAIL (x) text.
+
+  A success whose logs show no matching jolt is a mismatch only when every
+  log was read. With an unreadable log it is infra (:logs), step \"could not
+  read logs\".
+
+  cancelled, startup_failure and action_required are not-run: the project's
+  build never gave an answer, which is not a failure of jolt."
   [{:keys [requested nightly-sha conclusion jobs logs]}]
   (let [base {:installed nil :failed-step nil :cause nil :detail conclusion}]
     (case conclusion
       "success"
-      (let [{:keys [installed match?]}
-            (version/pick-installed requested nightly-sha
-                                    (keep #(get logs (:id %)) jobs))]
-        (assoc base :result (if match? "pass" "mismatch") :installed installed))
+      (let [texts (map #(get logs (:id %)) jobs)
+            {:keys [installed match?]}
+            (version/pick-installed requested nightly-sha (remove nil? texts))]
+        (cond
+          match? (assoc base :result "pass" :installed installed)
+
+          ;; No job showed the requested version, and a log we could not read
+          ;; may have been the one that did. That is no evidence of a wrong
+          ;; jolt, so it is not reported as one (I1).
+          (or (empty? jobs) (some nil? texts))
+          (assoc base :result "infra" :cause :logs :failed-step unreadable-logs)
+
+          :else (assoc base :result "mismatch" :installed installed)))
 
       "skipped" (assoc base :result "not-run")
+
+      ;; Nothing ran to completion, so nothing is known about jolt (I2, R37).
+      ;; detail keeps the conclusion for the table.
+      ("cancelled" "startup_failure" "action_required") (assoc base :result "not-run")
 
       "failure"
       (let [steps (failed-steps jobs)
@@ -115,29 +140,33 @@
 (defn- icon [{:keys [result cause detail installed]}]
   (case result
     "pass"     "pass"
-    "not-run"  "skipped"
+    "not-run"  (if (contains? #{"cancelled" "startup_failure" "action_required"} detail)
+                 (str "not run (" detail ")")
+                 "skipped")
     "mismatch" (str "**WRONG JOLT** (ran " (or installed "no version found") ")")
-    "infra"    (if (= :deps cause)
-                 "**could not download dependencies**"
+    "infra"    (case cause
+                 :deps "**could not download dependencies**"
+                 :logs "**could not read the run's logs**"
                  "**could not install jolt**")
     (str "**FAIL** (" detail ")")))
 
 (defn- split-names
   "Project names by outcome, in fleet order: {:failed :infra :nodeps
-  :mismatch :noinstall}. failed holds mismatches too, as the table always
-  did."
+  :nologs :mismatch :noinstall}. failed holds mismatches too, as the table
+  always did."
   [projects]
   (let [names (fn [pred] (mapv :name (filter pred projects)))]
     {:mismatch  (names #(= "mismatch" (:result %)))
      :failed    (names #(contains? #{"mismatch" "fail" "timed-out" "dispatch-failed"} (:result %)))
      :infra     (names #(= "infra" (:result %)))
      :nodeps    (names #(and (= "infra" (:result %)) (= :deps (:cause %))))
-     :noinstall (names #(and (= "infra" (:result %)) (not= :deps (:cause %))))}))
+     :nologs    (names #(and (= "infra" (:result %)) (= :logs (:cause %))))
+     :noinstall (names #(and (= "infra" (:result %)) (not (#{:deps :logs} (:cause %)))))}))
 
 (defn summary-md
   "The step summary: a row per project, then a line per kind of trouble."
   [{:keys [version projects]}]
-  (let [{:keys [mismatch failed infra nodeps noinstall]} (split-names projects)
+  (let [{:keys [mismatch failed infra nodeps nologs noinstall]} (split-names projects)
         lines
         (concat
          [(str "## jolt `" version "` across " org) "" "| project | result | run |" "|---|---|---|"]
@@ -159,6 +188,11 @@
             ""
             "That is a package-registry problem, often Maven Central rate"
             "limiting while several projects build at once, not a fact about jolt."])
+         (when (seq nologs)
+           [(str "**Could not read the logs of a green run for:** " (joined nologs))
+            ""
+            "The run succeeded but its logs could not be fetched twice, so which"
+            "jolt it ran is unknown. That is a GitHub API problem, not a fact about jolt."])
          ;; Counted from the projects rather than written out, so the number
          ;; cannot go stale beside the list it counts.
          (when (and (empty? failed) (empty? infra))
@@ -231,9 +265,21 @@
 
 (defn- run-url [project id] (str "https://github.com/" org "/" project "/actions/runs/" id))
 
+(defn- first-line
+  "The first non-blank line of gh's stdout and stderr, trimmed and capped at
+  200 characters, with the token blanked out should it ever appear. Printed
+  and recorded as the row's failed step so a dispatch failure explains itself
+  (R33). gh does not print its token; this guards the day it does."
+  [text token]
+  (let [line (or (->> (str/split-lines (or text "")) (map str/trim) (remove str/blank?) first)
+                 "gh printed nothing")
+        line (if (seq token) (str/replace line token "***") line)]
+    (subs line 0 (min 200 (count line)))))
+
 (defn- dispatch-all!
-  "Dispatch ci.yml in each project. Returns {project {:run-id :need-id? :detail}}
-  where :detail \"dispatch-failed\" marks a failed dispatch."
+  "Dispatch ci.yml in each project. Returns {project {:run-id :need-id? :detail
+  :failed-step}} where :detail \"dispatch-failed\" marks a failed dispatch and
+  :failed-step is the first line gh printed."
   [{:keys [sh token]} version projects]
   (log (str "::group::dispatch jolt " version))
   (let [res (reduce
@@ -253,8 +299,11 @@
                                  ", falling back to newest-run matching. That is unreliable when fan-outs overlap.")
                            (log (str "  dispatched " pr ", run id unknown"))
                            (assoc acc pr {:need-id? true}))))
-                   (do (log (str "  FAILED to dispatch " pr))
-                       (assoc acc pr {:detail "dispatch-failed"})))))
+                   (let [line (first-line (str out err) token)]
+                     ;; Indented, so gh's text can never open a workflow command.
+                     (log (str "  FAILED to dispatch " pr))
+                     (log (str "  " line))
+                     (assoc acc pr {:detail "dispatch-failed" :failed-step line})))))
              {} projects)]
     (log "::endgroup::")
     res))
@@ -312,31 +361,44 @@
          (warn (str "could not list the jobs of " pr " run " id ": " (explain e)))
          [])))
 
+(defn- fetch-log-twice
+  "A job's log, read again once when the first read fails (I1)."
+  [gh pr job-id]
+  (or (fetch-log gh pr job-id) (fetch-log gh pr job-id)))
+
 (defn- finish
   "Read the finished run's jobs and the logs the verdict needs, then classify.
   Logs are fetched only here, for completed runs: the failed jobs' for a
   failure (install and download failures live there), every job's for a
-  success (to read the `jolt --version` line)."
+  success (to read the `jolt --version` line, each read retried once)."
   [{:keys [gh now requested nightly-sha]} pr id conclusion]
   (let [jobs  (run-jobs gh pr id)
         want  (case conclusion
                 "success" jobs
                 "failure" (filter #(= "failure" (:conclusion %)) jobs)
                 [])
-        logs  (into {} (map (fn [j] [(:id j) (fetch-log gh pr (:id j))])) want)
+        fetch (if (= "success" conclusion) fetch-log-twice fetch-log)
+        logs  (into {} (map (fn [j] [(:id j) (fetch gh pr (:id j))])) want)
         c     (classify {:requested requested :nightly-sha nightly-sha
                          :conclusion conclusion :jobs jobs :logs logs})]
     (assoc c :finished-at (now))))
 
+(defn- now-ms
+  "The injected clock as epoch milliseconds."
+  [now]
+  (.toEpochMilli (java.time.Instant/parse (now))))
+
 (defn- poll!
-  "Wait for every dispatched run to complete. Returns {project verdict}, polling in
-  fleet order. A
-  transport error while polling is just 'not yet'. Projects still running
-  after the last try are timed-out."
-  [{:keys [gh sleep] :as ctx} projects runs]
+  "Wait for every dispatched run to complete, in fleet order, until ctx's
+  :deadline (epoch ms, 45 minutes after dispatch, measured with the injected
+  now, so a slow poll pass costs time and not iterations). Returns {project
+  verdict}. A transport error while polling is just 'not yet'. Projects still
+  running at the deadline have no verdict and the caller marks them
+  timed-out. Every run is polled at least once."
+  [{:keys [gh sleep now deadline] :as ctx} projects runs]
   (log "::group::wait for completion")
-  (let [out (loop [i 0 pending (filterv runs projects) done {}]
-              (if (or (empty? pending) (>= i poll-tries))
+  (let [out (loop [pending (filterv runs projects) done {}]
+              (if (empty? pending)
                 done
                 (let [step (reduce
                             (fn [{:keys [pending done]} pr]
@@ -355,8 +417,10 @@
                                     {:pending pending :done (assoc done pr v)})
                                   {:pending (conj pending pr) :done done})))
                             {:pending [] :done done} pending)]
-                  (when (seq (:pending step)) (sleep poll-interval-ms))
-                  (recur (inc i) (:pending step) (:done step)))))]
+                  (if (or (empty? (:pending step)) (>= (now-ms now) deadline))
+                    (:done step)
+                    (do (sleep poll-interval-ms)
+                        (recur (:pending step) (:done step)))))))]
     (log "::endgroup::")
     out))
 
@@ -383,6 +447,7 @@
         _         (when sha (log "vnightly is" sha))
         ctx       {:gh gh :sh sh :sleep sleep :now now :token (env "GH_TOKEN")
                    :requested requested :nightly-sha sha}
+        ctx        (assoc ctx :deadline (+ (now-ms now) poll-window-ms))
         dispatched (identify-fallback! ctx (dispatch-all! ctx requested projects))
         verdicts   (poll! ctx projects (into {} (filter (comp :run-id val)) dispatched))
         rows       (mapv (fn [pr]
@@ -394,7 +459,8 @@
                                      :cause nil :finished-at nil}
                                     (cond
                                       v   v
-                                      (:detail d) {:result (or (:result d) (:detail d)) :detail (:detail d)}
+                                      (:detail d) {:result (or (:result d) (:detail d)) :detail (:detail d)
+                                                   :failed-step (:failed-step d)}
                                       :else {:result "timed-out" :detail "timed-out"}))))
                          projects)
         {:keys [failed infra]} (split-names rows)

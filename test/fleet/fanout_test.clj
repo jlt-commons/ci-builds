@@ -42,11 +42,28 @@
                                         :jobs [(job 1 "success")] :logs {1 (jolt-log "0.7.29")}})
                       [:result :installed]))))
 
-(deftest a-green-run-with-no-version-line-is-mismatch
+(deftest a-green-run-with-readable-logs-and-no-version-line-is-mismatch
   (is (= {:result "mismatch" :installed nil}
          (select-keys (fanout/classify {:requested "0.8.27" :conclusion "success"
-                                        :jobs [(job 1 "success")] :logs {1 nil}})
+                                        :jobs [(job 1 "success")] :logs {1 "no version here\n"}})
                       [:result :installed]))))
+
+(deftest i1-a-green-run-whose-logs-cannot-be-read-is-infra-never-mismatch
+  (testing "nil logs"
+    (is (= {:result "infra" :cause :logs :failed-step "could not read logs" :installed nil}
+           (select-keys (fanout/classify {:requested "0.8.27" :conclusion "success"
+                                          :jobs [(job 1 "success")] :logs {1 nil}})
+                        [:result :cause :failed-step :installed]))))
+  (testing "one job unreadable and the other on the wrong jolt: the unreadable one may have matched"
+    (is (= "infra" (:result (fanout/classify {:requested "0.8.27" :conclusion "success"
+                                              :jobs [(job 1 "success") (job 2 "success")]
+                                              :logs {1 nil 2 (jolt-log "0.7.29")}})))))
+  (testing "one job unreadable but another matches (R4): pass"
+    (is (= "pass" (:result (fanout/classify {:requested "0.8.27" :conclusion "success"
+                                             :jobs [(job 1 "success") (job 2 "success")]
+                                             :logs {1 nil 2 (jolt-log "0.8.27")}})))))
+  (testing "no jobs listed at all"
+    (is (= "infra" (:result (fanout/classify {:requested "0.8.27" :conclusion "success" :jobs [] :logs {}}))))))
 
 (deftest nightly-needs-the-vnightly-sha-prefix
   (let [base {:requested "nightly" :conclusion "success" :jobs [(job 1 "success")] :logs {1 nightly-log}}]
@@ -109,9 +126,16 @@
                                                2 (fixture "log-test-failure.txt")}})
                       [:result :cause :failed-step]))))
 
+(deftest r37-cancelled-startup-failure-and-action-required-are-not-run
+  (doseq [c ["cancelled" "startup_failure" "action_required"]]
+    (testing c
+      (is (= {:result "not-run" :failed-step nil :detail c}
+             (select-keys (fanout/classify {:requested "0.8.27" :conclusion c :jobs [] :logs {}})
+                          [:result :failed-step :detail]))))))
+
 (deftest other-conclusions-are-fail-without-a-step
-  (is (= {:result "fail" :failed-step nil :detail "cancelled"}
-         (select-keys (fanout/classify {:requested "0.8.27" :conclusion "cancelled" :jobs [] :logs {}})
+  (is (= {:result "fail" :failed-step nil :detail "timed_out"}
+         (select-keys (fanout/classify {:requested "0.8.27" :conclusion "timed_out" :jobs [] :logs {}})
                       [:result :failed-step :detail]))))
 
 ;; ---------------------------------------------------------------------------
@@ -149,6 +173,17 @@
     (is (str/includes? md "**Could not download dependencies for:** d\n"))
     (is (str/includes? md "package-registry problem"))
     (is (not (str/includes? md "All ")))))
+
+(deftest summary-says-why-a-run-did-not-answer
+  (let [md (fanout/summary-md
+            {:version "0.8.27"
+             :projects [(row "c" "not-run" :detail "cancelled")
+                        (row "l" "infra" :cause :logs)]})]
+    (is (str/includes? md "| `c` | not run (cancelled) |"))
+    (is (str/includes? md "| `l` | **could not read the run's logs** |"))
+    (is (str/includes? md "**Could not read the logs of a green run for:** l\n"))
+    (is (not (str/includes? md "Could not install")))
+    (is (not (str/includes? md "Broken by jolt")))))
 
 (deftest summary-mismatch-without-a-version
   (is (str/includes? (fanout/summary-md {:version "1" :projects [(row "m" "mismatch")]})
@@ -198,8 +233,8 @@
      :sleep (fn [ms] (swap! sleeps conj ms))
      :now (constantly "2026-11-20T03:00:00Z")}))
 
-(defn- env-for [dir]
-  (let [m {"GH_TOKEN" "tok" "RUNNER_TEMP" dir
+(defn- env-for [dir & [token]]
+  (let [m {"GH_TOKEN" (or token "tok") "RUNNER_TEMP" dir
            "GITHUB_STEP_SUMMARY" (str dir "/summary.md") "GITHUB_OUTPUT" (str dir "/output.txt")
            "GITHUB_SERVER_URL" "https://github.com" "GITHUB_REPOSITORY" "jlt-commons/ci-builds"
            "GITHUB_RUN_ID" "999"}]
@@ -207,13 +242,13 @@
 
 (defn- tmp [] (str (fs/create-temp-dir)))
 
-(defn- run-fake [world version]
+(defn- run-fake [world version & {:keys [token]}]
   (let [dir (tmp)
         out (java.io.StringWriter.)
         err (java.io.StringWriter.)
         rc  (binding [*out* out *err* err]
               (fanout/run! (assoc (select-keys world [:gh :sh :sleep :now])
-                                  :version version :projects ["alpha" "beta"] :env (env-for dir))))]
+                                  :version version :projects ["alpha" "beta"] :env (env-for dir token))))]
     {:rc rc :dir dir :stdout (str out) :stderr (str err)
      :results (json/parse-string (slurp (str dir "/fanout-results/results.json")) true)
      :summary (slurp (str dir "/summary.md"))
@@ -287,18 +322,47 @@
         r (run-fake w "0.8.27")
         b (second (:projects (:results r)))]
     (is (= 1 (:rc r)))
-    (is (= {:result "dispatch-failed" :run_url nil :finished_at nil} (select-keys b [:result :run_url :finished_at])))
+    (is (= {:result "dispatch-failed" :run_url nil :finished_at nil :failed_step "HTTP 422"}
+           (select-keys b [:result :run_url :finished_at :failed_step])))
+    (is (str/includes? (:stdout r) "\n  HTTP 422\n"))
     (is (not-any? #(and (= :get (first %)) (str/includes? (second %) "beta")) @(:calls w)))))
 
-(deftest run-gives-up-after-150-polls-as-timed-out
-  (let [w (fake-world {:runs {"alpha" [{:status "in_progress"}] "beta" [ok-run]}
-                       :jobs {"beta" [(job 2 "success")]}
-                       :logs {2 (jolt-log "0.8.27")}})
+(defn- with-clock
+  "The world with a fake clock that only sleep advances, so a test can watch
+  the wall-clock deadline pass without waiting. Returns [world clock-atom]."
+  [w]
+  (let [t (atom (.toEpochMilli (java.time.Instant/parse "2026-11-20T03:00:00Z")))]
+    [(assoc w
+            :sleep (fn [ms] (swap! (:sleeps w) conj ms) (swap! t + ms))
+            :now (fn [] (str (java.time.Instant/ofEpochMilli @t))))
+     t]))
+
+(deftest i5-run-gives-up-45-minutes-after-dispatch-and-marks-the-rest-timed-out
+  (let [[w t] (with-clock (fake-world {:runs {"alpha" [{:status "in_progress"}] "beta" [ok-run]}
+                                       :jobs {"beta" [(job 2 "success")]}
+                                       :logs {2 (jolt-log "0.8.27")}}))
         r (run-fake w "0.8.27")]
     (is (= 1 (:rc r)))
-    (is (= 150 (count @(:sleeps w))))
-    (is (= ["timed-out" "pass"] (mapv :result (:projects (:results r)))))
+    (testing "20s sleeps until 45 minutes have passed: 2700s / 20s"
+      (is (= 135 (count @(:sleeps w))))
+      (is (= (* 45 60 1000) (- @t (.toEpochMilli (java.time.Instant/parse "2026-11-20T03:00:00Z"))))))
+    (testing "what finished is written, the rest is timed-out"
+      (is (= ["timed-out" "pass"] (mapv :result (:projects (:results r))))))
     (is (str/includes? (:summary r) "| `alpha` | **FAIL** (timed-out) |"))))
+
+(deftest i5-a-slow-poll-pass-costs-time-not-iterations
+  (testing "each pass takes 10 minutes of wall clock (a slow log read), so the deadline is hit after 5 passes"
+    (let [[w t] (with-clock (fake-world {:runs {"alpha" [{:status "in_progress"}] "beta" [ok-run]}
+                                         :jobs {"beta" [(job 2 "success")]}
+                                         :logs {2 (jolt-log "0.8.27")}}))
+          w (update w :gh assoc :get-json
+                    (let [base (:get-json (:gh w))]
+                      (fn [path]
+                        (when (str/includes? path "/alpha/actions/runs/101") (swap! t + (* 10 60 1000)))
+                        (base path))))
+          r (run-fake w "0.8.27")]
+      (is (= 4 (count @(:sleeps w))))
+      (is (= ["timed-out" "pass"] (mapv :result (:projects (:results r))))))))
 
 (deftest run-without-a-printed-url-warns-and-takes-the-newest-dispatch-run
   (let [w (fake-world {:print-url? false
@@ -391,3 +455,56 @@
                                            :jobs [{:id 1 :conclusion "failure" :steps 42}
                                                   {:id 2 :conclusion "failure" :steps [{:conclusion "failure"}]}]
                                            :logs {1 "x" 2 "x"}})))))
+
+(deftest i1-a-log-that-fails_once_is_read_again_and_the_run_passes
+  (let [w     (fake-world {:runs {"alpha" [ok-run] "beta" [ok-run]}
+                           :jobs {"alpha" [(job 1 "success")] "beta" [(job 2 "success")]}
+                           :logs {1 (jolt-log "0.8.27") 2 (jolt-log "0.8.27")}})
+        fails (atom 0)
+        w     (update w :gh assoc :get-redirected-log
+                      (let [base (:get-redirected-log (:gh w))]
+                        (fn [path]
+                          (if (and (str/includes? path "/jobs/1/") (< @fails 1))
+                            (do (swap! fails inc) (throw (ex-info "flaky" {:status 502})))
+                            (base path)))))
+        r     (run-fake w "0.8.27")]
+    (is (= 0 (:rc r)))
+    (is (= ["pass" "pass"] (mapv :result (:projects (:results r)))))
+    (is (= 1 @fails))))
+
+(deftest i1-a-log-that-stays-unreadable-is-infra-not-mismatch
+  (let [w (fake-world {:runs {"alpha" [ok-run] "beta" [ok-run]}
+                       :jobs {"alpha" [(job 1 "success")] "beta" [(job 2 "success")]}
+                       :logs {1 :fail 2 (jolt-log "0.8.27")}})
+        r (run-fake w "0.8.27")
+        a (first (:projects (:results r)))]
+    (is (= 1 (:rc r)))
+    (is (= {:result "infra" :failed_step "could not read logs"} (select-keys a [:result :failed_step])))
+    (testing "the read was tried twice"
+      (is (= 2 (count (filter #(= [:log "repos/jlt-commons/alpha/actions/jobs/1/logs"] %) @(:calls w))))))
+    (is (str/includes? (:output r) "failed=\ninfra=alpha\n"))))
+
+(deftest r33-a-dispatch-error-line-is-printed-indented-and-never-leaks-the-token
+  (let [token "ghs_s3cr3tT0ken"
+        w (fake-world {:dispatch {"beta" :fail}
+                       :runs {"alpha" [ok-run]}
+                       :jobs {"alpha" [(job 1 "success")]}
+                       :logs {1 (jolt-log "0.8.27")}})
+        ;; gh does not print its token, but a hostile first line that starts
+        ;; with a workflow command and echoes it must still do neither.
+        w (assoc w :sh (let [base (:sh w)]
+                         (fn [args env]
+                           (if (str/includes? (nth args 5) "beta")
+                             {:exit 1 :out ""
+                              :err (str "::set-output name=x::y token " (get env "GH_TOKEN") "\nsecond line\n")}
+                             (base args env)))))
+        r (run-fake w "0.8.27" :token token)
+        b (second (:projects (:results r)))]
+    (testing "indented two spaces, so it cannot start a workflow command"
+      (is (some #(= "  ::set-output name=x::y token ***" %) (str/split-lines (:stdout r))))
+      (is (not-any? #(str/starts-with? % "::set-output") (str/split-lines (:stdout r)))))
+    (testing "first line only, in the row"
+      (is (= "::set-output name=x::y token ***" (:failed_step b))))
+    (testing "the token is nowhere in the output"
+      (doseq [text [(:stdout r) (:stderr r) (:summary r) (:output r) (json/generate-string (:results r))]]
+        (is (not (str/includes? text token)))))))

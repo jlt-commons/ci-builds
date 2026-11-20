@@ -60,6 +60,15 @@ jobs:
     name: fan-out
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    # A manual fan-out queues behind a running canary instead of racing it: two
+    # dispatches of one project's ci.yml at once cancel each other when its
+    # own concurrency group cancels in progress (R37). It joins the canary's
+    # group only when run on its own. Called by the canary (github.workflow is
+    # then `canary`), the caller already holds that group, so the job takes a
+    # group of its own, which is unique per run and never waits.
+    concurrency:
+      group: ${{ github.workflow == 'fan-out' && 'canary' || format('fanout-called-{0}', github.run_id) }}
+      cancel-in-progress: false
     outputs:
       failed: ${{ steps.run.outputs.failed }}
       infra: ${{ steps.run.outputs.infra }}
