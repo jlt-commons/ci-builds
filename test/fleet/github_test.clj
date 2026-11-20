@@ -1,5 +1,5 @@
 (ns fleet.github-test
-  (:require [clojure.test :refer [deftest is]]
+  (:require [clojure.test :refer [deftest is testing]]
             [fleet.github :as gh]))
 
 (defn- stub
@@ -85,3 +85,51 @@
                                       (atom []))})
         e  (try ((:get-paginated c) "x") nil (catch Exception e e))]
     (is (= 502 (gh/status-of e)))))
+
+;; 9a review fix (a): the token goes to api.github.com only.
+
+(defn- foreign-host? [e] (= :foreign-host (:reason (ex-data e))))
+
+(deftest full-url-on-another-host-throws-and-sends-nothing
+  (doseq [url ["https://evil.example/repos/o/r"
+               "http://api.github.com/repos/o/r"
+               "https://api.github.com.evil.example/repos/o/r"
+               "https://api.github.com@evil.example/repos/o/r"
+               "https://api.github.com:8443/repos/o/r"]]
+    (testing url
+      (let [seen (atom [])
+            c    (gh/client {:token "tok" :request (stub {} seen)})]
+        (doseq [f [:get-json :get-raw :get-paginated]]
+          (let [e (try ((f c) url) nil (catch Exception e e))]
+            (is (foreign-host? e))
+            (is (nil? (gh/status-of e)))))
+        (is (= [] @seen))))))
+
+(deftest full-url-on-api-github-com-still-works-with-the-token
+  (let [seen (atom [])
+        url  "https://api.github.com/repos/o/r"
+        c    (gh/client {:token "tok" :request (stub {url {:status 200 :headers {} :body "{}"}} seen)})]
+    (is (= {} ((:get-json c) url)))
+    (is (= "Bearer tok" (get-in (first @seen) [:headers "Authorization"])))))
+
+(deftest link-next-on-another-host-is-refused-after-the-first-page
+  (let [seen (atom [])
+        p1   "https://api.github.com/x?per_page=100"
+        c    (gh/client {:token "tok"
+                         :request (stub {p1 {:status 200
+                                             :headers {"link" "<https://evil.example/steal?page=2>; rel=\"next\""}
+                                             :body "[1]"}}
+                                        seen)})
+        e    (try ((:get-paginated c) "x") nil (catch Exception e e))]
+    (is (foreign-host? e))
+    (is (= [p1] (mapv :url @seen)))))
+
+;; 9a review fix (b): a transport failure carries no :status.
+
+(deftest transport-exception-propagates-with-no-status
+  (let [boom (ex-info "connection refused" {})
+        c    (gh/client {:request (fn [_] (throw boom))})]
+    (doseq [f [:get-json :get-raw :get-paginated]]
+      (let [e (try ((f c) "repos/o/r") nil (catch Exception e e))]
+        (is (identical? boom e))
+        (is (nil? (gh/status-of e)))))))

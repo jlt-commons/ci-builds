@@ -6,6 +6,15 @@ on:
     branches-ignore: [status]
   pull_request:
 
+permissions:
+  contents: read
+
+env:
+  # The tool jolt: runs the fleet tools and their tests. Pinned so a release
+  # published overnight can't turn this red on an untouched tree. This is not
+  # the jolt the fleet is tested against.
+  TOOLS_JOLT_VERSION: ${{ vars.TOOLS_JOLT_VERSION || '0.8.27' }}
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -14,3 +23,16 @@ jobs:
       - run: sudo apt-get install -y bats
       - run: bats test/
       - run: shellcheck -x scripts/lib/*.sh scripts/build-status.sh scripts/collect-own-pin.sh scripts/collect-uncovered.sh scripts/publish-status.sh scripts/refresh-status.sh
+
+  jolt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jlt-commons/setup-jolt@v1
+        with:
+          version: ${{ env.TOOLS_JOLT_VERSION }}
+      - uses: actions/cache@v6.1.0
+        with:
+          path: ~/.jolt/gitlibs
+          key: jolt-gitlibs-${{ hashFiles('deps.edn') }}
+      - run: jolt test

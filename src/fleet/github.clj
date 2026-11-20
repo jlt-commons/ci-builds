@@ -22,18 +22,39 @@
               (when (= "next" rel) url)))
           (str/split link-header #",\s*(?=<)"))))
 
-(defn- url-for [path]
+(defn- api-url?
+  "True for api-base itself or a URL under it. The character after the host
+  must be /, ? or the end, so api.github.com.evil.example and
+  api.github.com@evil.example do not pass."
+  [url]
+  (and (str/starts-with? url api-base)
+       (let [c (get url (count api-base))]
+         (or (nil? c) (= \/ c) (= \? c)))))
+
+(defn- url-for
+  "The request URL for a path. A full URL must be on api-base: the token
+  rides on every request, so any other host throws ex-info with
+  {:reason :foreign-host} before a request is made."
+  [path]
   (cond
-    (re-find #"^https?://" path) path
-    (str/starts-with? path "/")  (str api-base path)
-    :else                        (str api-base "/" path)))
+    (re-find #"^[a-zA-Z][a-zA-Z0-9+.-]*://" path)
+    (if (api-url? path)
+      path
+      (throw (ex-info (str "refusing to send the GitHub token to a foreign host: " path)
+                      {:reason :foreign-host :url path})))
+    (str/starts-with? path "/") (str api-base path)
+    :else                       (str api-base "/" path)))
 
 (defn- with-per-page [path]
   (if (re-find #"[?&]per_page=" path)
     path
     (str path (if (str/includes? path "?") "&" "?") "per_page=100")))
 
-(defn- default-request [req] (http/get (:url req) (dissoc req :url)))
+(defn- default-request
+  "No redirects: the client would replay the Authorization header to a
+  redirect target on any host."
+  [req]
+  (http/get (:url req) (assoc (dissoc req :url) :follow-redirects false)))
 
 (defn- request!
   "One GET. Returns the response map, or throws ex-info on a non-2xx status."

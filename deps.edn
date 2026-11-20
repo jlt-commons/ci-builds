@@ -12,10 +12,38 @@
 
  :tasks {test {:doc "Run every fleet.*-test namespace; exit 1 on any failure or error"
                :requires ([clojure.test :as t]
+                          [fleet.cli-test]
+                          [fleet.collect-test]
                           [fleet.github-test]
+                          [fleet.publish-test]
+                          [fleet.refresh-test]
                           [fleet.status-test]
                           [fleet.version-test])
-               :task (let [{:keys [fail error]} (t/run-tests 'fleet.github-test
+               :task (let [{:keys [fail error]} (t/run-tests 'fleet.cli-test
+                                                             'fleet.collect-test
+                                                             'fleet.github-test
+                                                             'fleet.publish-test
+                                                             'fleet.refresh-test
                                                              'fleet.status-test
                                                              'fleet.version-test)]
-                       (when (pos? (+ fail error)) (System/exit 1)))}}}
+                       (when (pos? (+ fail error)) (System/exit 1)))}
+
+         fleet:own-pin {:doc "Print each fleet project's latest push run and pin as JSON (env: GH_TOKEN, FLEET_JSON)"
+                        :requires ([fleet.cli :as cli])
+                        :task (System/exit (cli/own-pin-main *command-line-args*))}
+
+         fleet:uncovered {:doc "Print the org repos the fleet does not cover, with reasons, as JSON"
+                          :requires ([fleet.cli :as cli])
+                          :task (System/exit (cli/uncovered-main *command-line-args*))}
+
+         fleet:status {:doc "Merge results into status.json and history.json: --prev-status F --prev-history F --own-pin F --uncovered F --latest V --nightly-json J|null --canary-run URL --now ISO --out-dir D [results.json ...]"
+                       :requires ([fleet.cli :as cli])
+                       :task (System/exit (cli/status-main *command-line-args*))}
+
+         fleet:refresh {:doc "Collect, merge and write <out-dir>/status.json and history.json [results.json ...] (env: LATEST NIGHTLY_JSON CANARY_RUN, PREV_DIR)"
+                        :requires ([fleet.cli :as cli])
+                        :task (System/exit (cli/refresh-main *command-line-args*))}
+
+         fleet:publish {:doc "Refresh and commit to origin's status branch: <out-dir> [results.json ...] (env: LATEST NIGHTLY_JSON CANARY_RUN)"
+                        :requires ([fleet.cli :as cli])
+                        :task (System/exit (cli/publish-main *command-line-args*))}}}
