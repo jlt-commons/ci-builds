@@ -5,12 +5,11 @@
 # Prints the version from the first "jolt v<semver>[-N-g<hex>]" line (after the
 # Actions timestamp), without the leading v. Exits 1 when there is none.
 installed_version() {
-  local line text re='^jolt v([0-9]+\.[0-9]+\.[0-9]+(-[0-9]+-g[0-9a-f]+)?)$'
+  local line re='^([0-9T:.-]+Z )?jolt v([0-9]+\.[0-9]+\.[0-9]+(-[0-9]+-g[0-9a-f]+)?)$'
   while IFS= read -r line || [ -n "$line" ]; do
     line=${line%$'\r'}
-    text=$(printf '%s' "$line" | sed -E 's/^[0-9T:.-]+Z //')
-    if [[ $text =~ $re ]]; then
-      printf '%s\n' "${BASH_REMATCH[1]}"
+    if [[ $line =~ $re ]]; then
+      printf '%s\n' "${BASH_REMATCH[2]}"
       return 0
     fi
   done < "$1"
@@ -33,12 +32,15 @@ version_matches() {
 # Prints the literal version from the first JOLT_VERSION: key line, without v.
 # Exits 1 when the file or key is missing or the pin is not a literal version.
 parse_pin() {
-  local line re
-  re="['\"]v?([0-9]+\\.[0-9]+\\.[0-9]+)['\"]"
+  local line v ws='[[:space:]]*'
+  v="v?([0-9]+\\.[0-9]+\\.[0-9]+)"
+  local re="^${ws}JOLT_VERSION:${ws}(\\\$\\{\\{${ws}inputs\\.jolt-version${ws}\\|\\|${ws}'${v}'${ws}\\}\\}|\"${v}\"|'${v}'|${v})${ws}\$"
   [ -r "$1" ] || return 1
   line=$(grep -m1 -E '^[[:space:]]*JOLT_VERSION:' "$1") || return 1
+  line=${line%% \#*}
   [[ $line =~ $re ]] || return 1
-  printf '%s\n' "${BASH_REMATCH[1]}"
+  # Exactly one of the four alternatives matched, so one version group is set.
+  printf '%s\n' "${BASH_REMATCH[2]}${BASH_REMATCH[3]}${BASH_REMATCH[4]}${BASH_REMATCH[5]}"
 }
 
 # uncovered_reason <name> <has_ci> <has_input> <in_fleet> <excluded_reason>

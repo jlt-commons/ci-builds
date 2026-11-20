@@ -30,3 +30,19 @@ pin() { printf '%s\n' "$1" > "$BATS_TMPDIR/ci.yml"; run parse_pin "$BATS_TMPDIR/
 @test "uncovered: no ci.yml"  { run uncovered_reason x 0 0 0 ""; [ "$output" = "no ci.yml" ]; }
 @test "uncovered: no input"   { run uncovered_reason x 1 0 0 ""; [ "$output" = "ci.yml has no jolt-version input" ]; }
 @test "uncovered: ready"      { run uncovered_reason x 1 1 0 ""; [ "$output" = "ready, not yet in fleet.json" ]; }
+
+@test "pin: non-literal with quoted version in a trailing comment" {
+  pin "  JOLT_VERSION: \${{ needs.x.outputs.v }} # was '0.8.24'"; [ "$status" -eq 1 ]; [ -z "$output" ]
+}
+@test "pin: literal followed by a comment" { pin '  JOLT_VERSION: "0.8.24" # pinned'; [ "$status" -eq 0 ]; [ "$output" = "0.8.24" ]; }
+@test "pin: bare literal" { pin '  JOLT_VERSION: v0.8.24'; [ "$status" -eq 0 ]; [ "$output" = "0.8.24" ]; }
+
+@test "installed: CRLF line" {
+  printf '2026-11-18T03:48:27.0669741Z jolt v0.8.27-241-gdd3c4a4b\r\n' > "$BATS_TMPDIR/crlf"
+  run installed_version "$BATS_TMPDIR/crlf"; [ "$status" -eq 0 ]; [ "$output" = "0.8.27-241-gdd3c4a4b" ]
+}
+@test "installed: 20000-line log, version last" {
+  { yes '2026-11-18T03:48:27.0000000Z some build output line with jolt in it' | head -n 20000
+    printf '2026-11-18T03:48:28.0000000Z jolt v0.8.24\n'; } > "$BATS_TMPDIR/big"
+  run installed_version "$BATS_TMPDIR/big"; [ "$status" -eq 0 ]; [ "$output" = "0.8.24" ]
+}
