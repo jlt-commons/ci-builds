@@ -63,6 +63,10 @@ jobs:
       version: ${{ steps.version.outputs.version }}
 
     steps:
+      # fleet.json (the project list) and scripts/lib/version.sh live here.
+      # Under workflow_call this checks out the caller's ref of this same repo.
+      - uses: actions/checkout@v7
+
       # Mints a token scoped to the App's seven repositories, valid one hour.
       # Never a PAT: a PAT would act as whoever created it, and any collaborator
       # able to run this workflow would be borrowing that identity.
@@ -103,8 +107,22 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -uo pipefail
-          PROJECTS="glitter glitter-gl glitter-uikit raygui-jlt raylib-jlt raylib-ios raylib-android"
-          declare -A RUN CONC URL
+          # shellcheck source=scripts/lib/version.sh
+          . scripts/lib/version.sh
+          PROJECTS=$(jq -r '.projects | join(" ")' fleet.json)
+          declare -A RUN CONC URL INST FSTEP FIN
+          RES_DIR="${RUNNER_TEMP:-/tmp}/fanout-results"
+          mkdir -p "$RES_DIR"
+
+          # For nightly, the commit vnightly points at right now. An installed
+          # jolt whose -g<hex> does not prefix this is a different build.
+          NIGHTLY_SHA=""
+          if [ "$VERSION" = "nightly" ]; then
+            NIGHTLY_SHA="$(curl -fsSL https://api.github.com/repos/jolt-lang/jolt/git/refs/tags/vnightly \
+                           | sed -n 's/.*"sha": *"\([^"]*\)".*/\1/p' | head -1)"
+            [ -n "$NIGHTLY_SHA" ] || echo "::warning::could not resolve the vnightly sha, every nightly run will read as mismatch"
+            echo "vnightly is $NIGHTLY_SHA"
+          fi
           # A plain string, not an associative array: `${#arr[@]}` and
           # `${!arr[@]}` on an EMPTY associative array are only safe under
           # `set -u` from bash 4.4, and the empty case is the normal one here.
@@ -207,8 +225,29 @@ jobs:
                      2>/dev/null | grep -qi 'install jolt'; then
                   cc="toolchain-unavailable"
                 fi
+                FIN[$p]=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+                if [ "$cc" = "failure" ]; then
+                  FSTEP[$p]=$(gh api "repos/jlt-commons/$p/actions/runs/${RUN[$p]}/jobs" \
+                    --jq '[.jobs[].steps[]? | select(.conclusion=="failure") | .name] | first // empty' \
+                    2>/dev/null || true)
+                elif [ "$cc" = "success" ]; then
+                  # A green run is not proof it ran the jolt we asked for: read
+                  # the `jolt --version` line out of each job's log.
+                  inst=""
+                  for jid in $(gh api "repos/jlt-commons/$p/actions/runs/${RUN[$p]}/jobs" \
+                                 --jq '.jobs[].id' 2>/dev/null); do
+                    gh api "repos/jlt-commons/$p/actions/jobs/$jid/logs" \
+                      > "$RES_DIR/$p-$jid.log" 2>/dev/null || true
+                    if inst=$(installed_version "$RES_DIR/$p-$jid.log"); then break; fi
+                    inst=""
+                  done
+                  INST[$p]="$inst"
+                  if [ -z "$inst" ] || ! version_matches "$VERSION" "$inst" "$NIGHTLY_SHA"; then
+                    cc="mismatch"
+                  fi
+                fi
                 CONC[$p]="$cc"
-                echo "  $p: $cc"
+                echo "  $p: $cc${INST[$p]:+ (jolt ${INST[$p]})}"
               else
                 waiting=1
               fi
@@ -224,6 +263,8 @@ jobs:
           # Render the table this workflow exists to produce.
           failed=""
           infra=""
+          mismatch=""
+          : > "$RES_DIR/projects.jsonl"
           {
             echo "## jolt \`$VERSION\` across jlt-commons"
             echo
@@ -235,6 +276,8 @@ jobs:
             case "$c" in
               success)   icon="pass" ;;
               skipped)   icon="skipped" ;;
+              mismatch)  icon="**WRONG JOLT** (ran ${INST[$p]:-no version found})"
+                         mismatch="$mismatch $p"; failed="$failed $p" ;;
               toolchain-unavailable)
                          icon="**could not install jolt**"; infra="$infra $p" ;;
               *)         icon="**FAIL** ($c)"; failed="$failed $p" ;;
@@ -242,11 +285,37 @@ jobs:
             link="-"
             [ -n "${URL[$p]:-}" ] && link="[run](${URL[$p]})"
             echo "| \`$p\` | $icon | $link |" >> "$GITHUB_STEP_SUMMARY"
+            case "$c" in
+              success)                          r=pass ;;
+              toolchain-unavailable)            r=infra ;;
+              timed-out)                        r=timed-out ;;
+              dispatch-failed|no-run-appeared)  r=dispatch-failed ;;
+              mismatch)                         r=mismatch ;;
+              skipped)                          r=not-run ;;
+              *)                                r=fail ;;
+            esac
+            jq -nc --arg name "$p" --arg result "$r" --arg installed "${INST[$p]:-}" \
+                   --arg url "${URL[$p]:-}" --arg fin "${FIN[$p]:-}" --arg step "${FSTEP[$p]:-}" \
+              '{name: $name, result: $result,
+                installed: (if $installed == "" then null else $installed end),
+                run_url: (if $url == "" then null else $url end),
+                finished_at: (if $fin == "" then null else $fin end),
+                failed_step: (if $step == "" then null else $step end)}' \
+              >> "$RES_DIR/projects.jsonl"
           done
           failed="${failed# }"
           infra="${infra# }"
+          mismatch="${mismatch# }"
+          jq -s --arg requested "$VERSION" --arg sha "$NIGHTLY_SHA" \
+                --arg fin "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+                --arg url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            '{requested: $requested, nightly_sha: $sha, finished_at: $fin, run_url: $url, projects: .}' \
+            "$RES_DIR/projects.jsonl" > "$RES_DIR/results.json"
+          echo "results_dir=$RES_DIR" >> "$GITHUB_OUTPUT"
+          echo "artifact=results-${VERSION//\//-}" >> "$GITHUB_OUTPUT"
           {
             echo
+            [ -n "$mismatch" ] && echo "**Ran on the wrong jolt:** $mismatch"
             [ -n "$failed" ] && echo "**Broken by jolt \`$VERSION\`:** $failed"
             if [ -n "$infra" ]; then
               echo "**Could not install jolt \`$VERSION\` for:** $infra"
@@ -266,3 +335,11 @@ jobs:
           echo "failed=$failed" >> "$GITHUB_OUTPUT"
           echo "infra=$infra" >> "$GITHUB_OUTPUT"
           [ -z "$failed$infra" ] || { echo "failing: ${failed:-none}  infra: ${infra:-none}" >&2; exit 1; }
+
+      - name: Upload results.json
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.run.outputs.artifact || format('results-{0}', steps.version.outputs.version) }}
+          path: ${{ steps.run.outputs.results_dir }}/results.json
+          if-no-files-found: warn
