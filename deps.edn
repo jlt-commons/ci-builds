@@ -1,0 +1,21 @@
+;; deps.edn: the fleet dashboard tools, plain Clojure run by jolt as
+;; `jolt <task>`. The git shas below are the heads of main, measured
+;; 2026-11-20 with git ls-remote. babashka.process, babashka.fs,
+;; cheshire.core and clojure.test come bundled with jolt.
+{:paths ["src" "test" "resources"]
+ :deps  {io.github.jolt-lang/http-client {:git/url "https://github.com/jolt-lang/http-client.git"
+                                          :git/sha "03267126e0bebe172936e9618b9ff6cd678edaac"}
+         io.github.jolt-lang/yaml        {:git/url "https://github.com/jolt-lang/yaml.git"
+                                          :git/sha "ecbeb028bd319cbcccce6de83eca8eae5fedc7f4"}
+         io.github.jolt-lang/time        {:git/url "https://github.com/jolt-lang/time.git"
+                                          :git/sha "6c12a58d08586ca60421099d2d3d0bcd473238ac"}}
+
+ :tasks {test {:doc "Run every fleet.*-test namespace; exit 1 on any failure or error"
+               :requires ([clojure.test :as t]
+                          [fleet.github-test]
+                          [fleet.status-test]
+                          [fleet.version-test])
+               :task (let [{:keys [fail error]} (t/run-tests 'fleet.github-test
+                                                             'fleet.status-test
+                                                             'fleet.version-test)]
+                       (when (pos? (+ fail error)) (System/exit 1)))}}}
