@@ -1,0 +1,5 @@
+{"requested":"0.8.27","nightly_sha":"","finished_at":"2026-11-20T02:09:37Z","run_url":"https://github.com/jlt-commons/ci-builds/actions/runs/10",
+ "projects":[
+  {"name":"glitter","result":"pass","installed":"0.8.27","run_url":"https://github.com/jlt-commons/glitter/actions/runs/11","finished_at":"2026-11-20T02:08:07Z","failed_step":null},
+  {"name":"ebb","result":"pass","installed":"0.8.27","run_url":"https://github.com/jlt-commons/ebb/actions/runs/12","finished_at":"2026-11-20T02:08:09Z","failed_step":null}
+ ]}

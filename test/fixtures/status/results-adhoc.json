@@ -1,0 +1,4 @@
+{"requested":"0.8.25","nightly_sha":"","finished_at":"2026-11-20T03:00:00Z","run_url":"https://github.com/jlt-commons/ci-builds/actions/runs/30",
+ "projects":[
+  {"name":"glitter","result":"pass","installed":"0.8.25","run_url":"https://github.com/jlt-commons/glitter/actions/runs/31","finished_at":"2026-11-20T02:59:00Z","failed_step":null}
+ ]}

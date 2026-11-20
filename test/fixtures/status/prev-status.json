@@ -1,0 +1,13 @@
+{"schema":1,"generated_at":"2026-11-19T12:00:00Z","canary_run":"https://github.com/jlt-commons/ci-builds/actions/runs/5",
+ "jolt":{"latest":{"version":"0.8.27"},"nightly":{"published_at":"2026-11-19T03:00:00Z","sha":"aaaa1111","note":"n"}},
+ "projects":[
+  {"name":"ebb","pin":"0.8.24","cells":{
+    "pin":{"result":"pass","version":"0.8.24","installed":null,"run_url":"https://github.com/jlt-commons/ebb/actions/runs/2","finished_at":"2026-11-20T01:01:00Z","failed_step":null},
+    "latest":{"result":"fail","version":"0.8.27","installed":"0.8.27","run_url":"https://github.com/jlt-commons/ebb/actions/runs/40","finished_at":"2026-11-19T10:00:00Z","failed_step":"Tests"},
+    "nightly":{"result":"pass","version":"nightly","installed":"0.8.27-100-gaaaa1111","run_url":"https://github.com/jlt-commons/ebb/actions/runs/41","finished_at":"2026-11-19T10:05:00Z","failed_step":null}}},
+  {"name":"glitter","pin":"0.8.24","cells":{
+    "pin":{"result":"pass","version":"0.8.24","installed":null,"run_url":"https://github.com/jlt-commons/glitter/actions/runs/1","finished_at":"2026-11-20T01:00:00Z","failed_step":null},
+    "latest":{"result":"pass","version":"0.8.27","installed":"0.8.27","run_url":"https://github.com/jlt-commons/glitter/actions/runs/42","finished_at":"2026-11-19T10:00:00Z","failed_step":null},
+    "nightly":{"result":"pass","version":"nightly","installed":"0.8.27-100-gaaaa1111","run_url":"https://github.com/jlt-commons/glitter/actions/runs/43","finished_at":"2026-11-19T10:05:00Z","failed_step":null}}}
+ ],
+ "uncovered":[]}

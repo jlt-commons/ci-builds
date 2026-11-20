@@ -1,0 +1,5 @@
+[
+ {"name":"glitter","pin":"0.8.24","result":"pass","run_url":"https://github.com/jlt-commons/glitter/actions/runs/1","finished_at":"2026-11-20T01:00:00Z","failed_step":null},
+ {"name":"ebb","pin":"0.8.24","result":"pass","run_url":"https://github.com/jlt-commons/ebb/actions/runs/2","finished_at":"2026-11-20T01:01:00Z","failed_step":null},
+ {"name":"raygui-jlt","pin":"0.8.24","result":"fail","run_url":"https://github.com/jlt-commons/raygui-jlt/actions/runs/3","finished_at":"2026-11-20T01:02:00Z","failed_step":"Formatting"}
+]
