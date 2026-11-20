@@ -48,7 +48,7 @@
       2 (do (git! sh repo-dir "worktree" "add" "--quiet" "--detach" wt "HEAD")
             (git! sh wt "checkout" "--quiet" "--orphan" "status")
             (git! sh wt "rm" "-rfq" "."))
-      (throw (ex-info (str "publish-status: cannot reach origin (ls-remote exit " rc ")")
+      (throw (ex-info (str "cannot reach origin (ls-remote exit " rc ")")
                       {:exit rc})))))
 
 (defn- unchanged?
@@ -72,7 +72,7 @@
       (open-worktree! sh repo-dir wt prev)
       (rebuild {:prev-dir prev :out-dir out})
       (when-not (and (fs/exists? (str out "/status.json")) (fs/exists? (str out "/history.json")))
-        (throw (ex-info (str "publish-status: rebuild did not write both files in " out) {})))
+        (throw (ex-info (str "rebuild did not write both files in " out) {})))
       (if (unchanged? out wt)
         :unchanged
         (do (fs/copy (str out "/status.json") (str wt "/status.json") {:replace-existing true})
@@ -99,7 +99,7 @@
   :attempt n} or {:result :unchanged}; throws after 3 rejected pushes."
   [{:keys [out-dir rebuild] :as opts}]
   (when-not rebuild
-    (throw (ex-info "publish-status: rebuild is required" {})))
+    (throw (ex-info "rebuild is required" {})))
   (fs/create-dirs out-dir)
   (let [out (str (fs/canonicalize out-dir))
         tmp (str (fs/create-temp-dir))]
@@ -111,6 +111,6 @@
             (= :published r) {:result :published :attempt n}
             (< n attempts)   (do (warn (str "push rejected on attempt " n ", retrying"))
                                  (recur (inc n)))
-            :else            (throw (ex-info (str "publish-status: gave up after " attempts " rejected pushes")
+            :else            (throw (ex-info (str "gave up after " attempts " rejected pushes")
                                              {:attempts attempts})))))
       (finally (fs/delete-tree tmp)))))

@@ -154,26 +154,16 @@ jobs:
     strategy:
       fail-fast: false
       # ONE version at a time. Each leg's fan-out dispatches every project's
-      # own ci.yml on `main`, and with both legs in flight together
-      # that is two near-simultaneous workflow_dispatch calls
-      # against the SAME project on the SAME ref. raylib-ios's concurrency
-      # group cancels unconditionally (`cancel-in-progress: true`, no ref
-      # guard), so its earlier dispatches die within a couple of seconds of
-      # the next one starting - reproduced 2026-09-05, run 33999584713:
-      # raylib-ios cancelled (not failed) in both the nightly and 0.8.1 legs,
-      # created and cancelled a mere 2-3s apart. glitter-gl's own dispatch
-      # was cancelled the same run despite ITS concurrency group being
-      # ref-guarded false on main, same instant cancellation pattern (2s),
-      # so something outside any one project's own workflow file also
-      # collides two of these together, not only raylib-ios's config.
-      # Either way, `fanout.yml` treats a "cancelled" conclusion the same as
-      # a genuine build failure and reports "jolt breaks the fleet" (issue
-      # #5) for a version nothing actually failed against - every leg that
-      # finished normally that run was green. max-parallel: 1 removes the
-      # race outright: legs run one after another, so no project is ever
-      # dispatched twice at once. Costs wall-clock (up to ~2x on a run that
-      # tests both rows), not correctness, and the concurrency group keeps
-      # overlapping ticks from stacking up.
+      # own ci.yml on `main`, and two legs in flight together would dispatch
+      # the SAME project on the SAME ref twice within seconds. A project whose
+      # concurrency group cancels in progress (raylib-ios does, with no ref
+      # guard) then loses the earlier run: in run 33999584713 it was cancelled
+      # in both the nightly and 0.8.1 legs, 2-3s after being created.
+      # max-parallel: 1 runs the legs one after another, so no project is
+      # dispatched twice at once. It costs wall-clock (up to ~2x on a run that
+      # tests both rows) and nothing else. The concurrency group keeps
+      # overlapping ticks from stacking up, and a run that is cancelled anyway
+      # reads not-run in fan-out, never fail (R37).
       max-parallel: 1
       matrix:
         version: ${{ fromJSON(needs.plan.outputs.versions) }}

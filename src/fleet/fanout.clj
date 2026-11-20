@@ -8,24 +8,25 @@
   its pure scenes under jolt on Linux because its real target is a phone),
   and every one of them accepts a `jolt-version` dispatch input that overrides
   its pinned JOLT_VERSION for a single run. So this dispatches those and
-  collects the answers. Reimplementing five build environments here would
-  rot, and would test something other than what a contributor actually hits.
+  collects the answers. Reimplementing every project's build environment
+  here would rot, and would test something other than what a contributor
+  actually hits.
 
-  Why it exists: jolt v0.8.0 reversed jolt.ffi/write's last two arguments
-  (jolt-lang/jolt#802). Both spellings are plain integers, so a mismatch
-  writes to the wrong address and reports nothing. Finding that out one
-  repository at a time, days apart, is what this replaces.
+  Why it exists: a jolt release can change an API without any error. v0.8.0
+  reversed jolt.ffi/write's last two arguments (jolt-lang/jolt#802), and both
+  spellings are plain integers, so a mismatch writes to the wrong address and
+  reports nothing. One run over the whole fleet shows that on the day it
+  happens, not one repository at a time days later.
 
   Run ids come from gh's own output. `gh workflow run` prints the URL of the
-  run it created, so the id is READ from that. The guess this replaced was
-  \"the newest workflow_dispatch run above a baseline recorded before
-  dispatching\", a positive control that always returns a plausible id. It
-  failed for real: canary run 33682325150 ran two fan-out legs at once, 0.8.0
-  and 0.8.1, and BOTH claimed glitter run 33682354193, though gh had printed
-  33682349678 to the 0.8.1 leg. The 0.8.1 row reported a result for a build
-  of 0.8.0. Reading gh's output holds however many fan-outs overlap. Only an
-  older gh that prints no URL falls back to the newest workflow_dispatch run,
-  with a ::warning:: saying the attribution is a guess.
+  run it created, so the id is READ from that. Guessing \"the newest
+  workflow_dispatch run above a baseline recorded before dispatching\" always
+  returns a plausible id, so it cannot tell when it is wrong: in canary run
+  33682325150 two overlapping fan-out legs both claimed glitter run
+  33682354193, and the 0.8.1 row reported a build of 0.8.0. Reading gh's
+  output holds however many fan-outs overlap. Only an older gh that prints no
+  URL falls back to the newest workflow_dispatch run, with a ::warning::
+  saying the attribution is a guess.
 
   Result classes, all per project:
   - pass: the run succeeded and a job installed the requested jolt (R4: ANY

@@ -23,13 +23,12 @@
 
   NOT A DUPLICATE. Fresh is necessary and not sufficient. jolt tags vnightly
   at whatever main was when the nightly job ran, and that is regularly the
-  release tag itself (measured 2026-09-02: vnightly and v0.8.1 both pointed
-  at one commit, three hours old, while main had moved 7 commits past it).
-  A row built from the same commit as a release row is the same data point
-  rendered twice. The commits are compared live, by tag, because a recorded
-  SHA is a label that can be orphaned: jolt force-pushed main on 2026-09-03
-  and moved both 0.8.x tags, and `git rev-parse` still answers cheerfully
-  from a local object store for a commit upstream no longer has.
+  release tag's own commit, even when main has moved on since. A row built
+  from the same commit as a release row is the same data point rendered
+  twice. The commits are compared live, by tag, because a recorded SHA is a
+  label that can be orphaned: after a force-push of main that moves the tags,
+  `git rev-parse` still answers from a local object store for a commit
+  upstream no longer has.
 
   TWO GATES keep a 15-minute tick cheap. The interval gate holds a scheduled
   tick back until that many hours have passed since a canary last BUILT
@@ -332,8 +331,8 @@
        (str "Recovered. The fleet builds against " versions ". " nightly ". [Run](" run-url
             ") Dashboard: " dashboard)
 
-       ;; A failure that is really our own misconfiguration or a registry
-       ;; outage is not filed as a fact about jolt.
+       ;; A failure caused by the environment (the install source, a package
+       ;; registry, dispatch access) is not filed as a fact about jolt.
        infra?
        (lines (str "Infra problems, not findings about jolt: " infra-text)
               ""

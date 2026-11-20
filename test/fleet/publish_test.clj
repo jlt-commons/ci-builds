@@ -162,3 +162,9 @@
   (let [r (repo)]
     (pub r rebuild-fixed)
     (is (= 1 (count (str/split-lines (git (:work r) "worktree" "list")))))))
+
+(deftest errors-carry-no-prefix-of-their-own
+  ;; The CLI adds `publish-status:`; a second one in the message read as a stutter.
+  (let [e (try (publish/publish! {:out-dir (str (fs/create-temp-dir))}) nil
+               (catch Exception e e))]
+    (is (= "rebuild is required" (ex-message e)))))
