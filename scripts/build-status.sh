@@ -114,7 +114,7 @@ jq -n \
     | map_values({pin: [], latest: [], nightly: [], adhoc: []} + .)) as $hist
 
   | {status: {schema: 1, generated_at: $now, canary_run: $canary,
-              jolt: {latest: {version: $latest}, nightly: $nj},
+              jolt: {latest: {version: $latest}, nightly: ($nj // $ps.jolt.nightly // null)},
               projects: $sorted, uncovered: $un},
      history: {schema: 1, projects: $hist}}
 ' > "$tmp/both.json"

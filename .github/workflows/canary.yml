@@ -145,6 +145,18 @@ jobs:
             versions="[\"$REQUESTED\"]"
             nightly="manual dispatch of $REQUESTED, freshness gate not applied"
             echo "manual dispatch, testing $REQUESTED only"
+            # Asking for the nightly still records which build it was, so the
+            # status page can show it. Only the freshness and duplicate checks
+            # are skipped.
+            if [ "$REQUESTED" = "nightly" ]; then
+              pub="$(curl -fsSL https://api.github.com/repos/jolt-lang/jolt/releases/tags/vnightly \
+                     | sed -n 's/.*"published_at": *"\([^"]*\)".*/\1/p' | head -1)"
+              nsha="$(curl -fsSL https://api.github.com/repos/jolt-lang/jolt/git/refs/tags/vnightly \
+                      | sed -n 's/.*"sha": *"\([^"]*\)".*/\1/p' | head -1)"
+              [ -n "$pub" ] && [ -n "$nsha" ] || { echo "could not resolve vnightly" >&2; exit 1; }
+              nightly_json="$(jq -nc --arg p "$pub" --arg s "$nsha" --arg n "$nightly" \
+                                '{published_at: $p, sha: $s, note: $n}')"
+            fi
           else
             # The release row first, because the nightly block compares against
             # it.

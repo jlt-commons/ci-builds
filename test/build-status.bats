@@ -93,15 +93,21 @@ hi() { jq -c "$1" "$OUT/history.json"; }
   [ "$(st '.projects[]|select(.name=="glitter").cells.latest.result')" = '"pass"' ]
 }
 
+@test "null nightly-json with no previous status gives null jolt.nightly" {
+  NJ_ARG=null run_bs
+  [ "$status" -eq 0 ]
+  [ "$(st '.jolt.nightly')" = null ]
+}
+
 @test "same nightly sha keeps carried nightly cells" {
   NJ_ARG='{"published_at":"x","sha":"aaaa1111","note":"n"}' PS="$F/prev-status.json" run_bs
   [ "$(st '.projects[]|select(.name=="glitter").cells.nightly.result')" = '"pass"' ]
 }
 
-@test "null nightly-json keeps previous nightly cells and nightly is null" {
+@test "null nightly-json keeps previous nightly cells and previous jolt.nightly" {
   NJ_ARG=null PS="$F/prev-status.json" run_bs
   [ "$status" -eq 0 ]
-  [ "$(st '.jolt.nightly')" = null ]
+  [ "$(st '.jolt.nightly')" = "$(jq -c '.jolt.nightly' "$F/prev-status.json")" ]
   [ "$(st '.projects[]|select(.name=="glitter").cells.nightly.result')" = '"pass"' ]
 }
 
