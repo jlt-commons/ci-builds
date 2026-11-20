@@ -27,6 +27,9 @@ name: canary
 # vars.CANARY_INTERVAL_HOURS (default 0, no interval gate) holds a scheduled
 # tick back. The cron itself cannot be a variable, GitHub requires a literal.
 # vars.NIGHTLY_MAX_AGE_HOURS (default 48) is the nightly freshness limit.
+# vars.CANARY_RETRY_HOURS (default 6) sizes the retry window: a version set
+# that did not pass is tried once per window, and a new version set is tried at
+# once.
 # A manual dispatch ignores both gates. That is the point of a manual dispatch.
 # ---------------------------------------------------------------------------
 
@@ -67,6 +70,7 @@ jobs:
       proceed: ${{ steps.final.outputs.proceed }}
       reason: ${{ steps.decide.outputs.reason }}
       key: ${{ steps.decide.outputs.key }}
+      tried_key: ${{ steps.decide.outputs.tried_key }}
       nightly: ${{ steps.decide.outputs.nightly }}
       latest: ${{ steps.decide.outputs.latest }}
       nightly_json: ${{ steps.decide.outputs.nightly_json }}
@@ -93,6 +97,7 @@ jobs:
         env:
           REQUESTED: ${{ inputs.jolt-version }}
           INTERVAL_HOURS: ${{ vars.CANARY_INTERVAL_HOURS }}
+          RETRY_HOURS: ${{ vars.CANARY_RETRY_HOURS }}
           NIGHTLY_MAX_AGE_HOURS: ${{ vars.NIGHTLY_MAX_AGE_HOURS }}
           EVENT: ${{ github.event_name }}
           GH_TOKEN: ${{ github.token }}
@@ -109,7 +114,21 @@ jobs:
           key: ${{ steps.decide.outputs.key }}
           lookup-only: true
 
-      # Both gates land here. A step cannot rewrite an earlier step's output,
+      # Retry backoff (R35). A run that did not pass saves this key, which
+      # holds the version set and the current window (epoch hours div
+      # vars.CANARY_RETRY_HOURS, default 6). A hit means this exact set was
+      # already tried in this window, so a known-bad set is retried once per
+      # window while a new version set has a new key and runs on the next tick.
+      - name: Have we already tried this version set in this window?
+        id: tried
+        if: steps.decide.outputs.proceed == 'true' && github.event_name == 'schedule'
+        uses: actions/cache/restore@v6.1.0
+        with:
+          path: .canary-state
+          key: ${{ steps.decide.outputs.tried_key }}
+          lookup-only: true
+
+      # The gates land here. A step cannot rewrite an earlier step's output,
       # so the job's `proceed` reads THIS step and not `decide`, which knows
       # only about the interval.
       - name: Final decision
@@ -117,6 +136,7 @@ jobs:
         env:
           INTERVAL_OK: ${{ steps.decide.outputs.proceed }}
           ALREADY_GREEN: ${{ steps.seen.outputs.cache-hit }}
+          ALREADY_TRIED: ${{ steps.tried.outputs.cache-hit }}
           REASON: ${{ steps.decide.outputs.reason }}
           KEY: ${{ steps.decide.outputs.key }}
         run: jolt fleet:plan --final
@@ -285,3 +305,20 @@ jobs:
         with:
           path: .canary-state
           key: ${{ needs.plan.outputs.key }}
+
+  # Retry backoff (R35). A fleet result that is not success marks this version
+  # set as tried for the current window, so the next ticks skip it instead of
+  # dispatching every project every 15 minutes. Same dummy-file trick as
+  # `remember`: the cache action needs a path that exists. !cancelled() so a
+  # failed fleet job does not skip this job, while a cancelled workflow still
+  # does.
+  remember-tried:
+    needs: [plan, fleet]
+    if: ${{ !cancelled() && needs.plan.outputs.proceed == 'true' && needs.fleet.result != 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: mkdir -p .canary-state && date -u +%FT%TZ > .canary-state/tried-at
+      - uses: actions/cache/save@v6.1.0
+        with:
+          path: .canary-state
+          key: ${{ needs.plan.outputs.tried_key }}

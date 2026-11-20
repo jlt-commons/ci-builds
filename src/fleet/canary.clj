@@ -67,7 +67,7 @@
   (if (str/blank? text)
     dflt
     (or (parse-long (str/trim text))
-        (throw (ex-info (str var-name " is not a whole number of hours: " text) {})))))
+        (throw (ex-info (str var-name " is not a whole number of hours") {})))))
 
 (defn- short-sha [sha] (subs sha 0 (min 8 (count sha))))
 
@@ -112,16 +112,31 @@
         {:proceed false :reason (str "last run was " age "h ago, interval is " interval-hours "h")}
         {:proceed true :reason "due"}))))
 
-(defn- versions-key
-  "The change-gate cache key. A new release changes the version set. The
+(defn- versions-part
+  "The version set as a cache-key fragment. A new release changes it. The
   nightly needs its published_at folded in, because the literal string
   \"nightly\" is identical from one day to the next: without it the first
   green would cache a key that every later run also computes, and the nightly
   row would never run again however far main moved."
   [versions nightly-pub]
-  (str "canary-green-"
-       (str/join "-" (map #(str/replace % #"[\[\]\" ,]" "") versions))
+  (str (str/join "-" (map #(str/replace % #"[\[\]\" ,]" "") versions))
        (when nightly-pub (str "-" (str/replace nightly-pub #"[^0-9]" "")))))
+
+(defn- versions-key
+  "The change-gate cache key, saved only by a green run."
+  [versions nightly-pub]
+  (str "canary-green-" (versions-part versions nightly-pub)))
+
+(def default-retry-hours 6)
+
+(defn tried-key
+  "The retry-backoff cache key (R35), saved by a run that did not pass: the
+  version set plus the current window, epoch hours div retry-hours. A known-bad
+  version set is retried once per window, while a NEW version set has a new key
+  and is tried on the very next tick. retry-hours below 1 counts as 1."
+  [versions nightly-pub now retry-hours]
+  (let [window (quot (quot (or (epoch-ms now) 0) 3600000) (max 1 retry-hours))]
+    (str "canary-tried-" (versions-part versions nightly-pub) "-" window)))
 
 (defn plan
   "What to test and whether to bother.
@@ -131,8 +146,11 @@
   or nil), :release-shas (version -> tag commit), :interval-hours,
   :max-age-hours, :last-built-at (ISO or nil) and :now (ISO).
 
+  :retry-hours (default 6) sizes the retry-backoff window.
+
   Returns :versions (vector), :proceed (the interval decision, the change gate
-  is final-decision's job), :reason, :key, :nightly (text for the report),
+  is final-decision's job), :reason, :key, :tried-key (the retry-backoff cache
+  key), :nightly (text for the report),
   :nightly-json (the object status.json records, or nil) and :latest.
 
   A manual nightly still records which build it was (R23), skipping only the
@@ -157,7 +175,9 @@
              :nightly-json  (:json row)
              :nightly-pub   (when (:json row) (:published_at (:json row)))}))]
     (merge {:versions versions :nightly nightly :nightly-json nightly-json
-            :latest latest-release :key (versions-key versions nightly-pub)}
+            :latest latest-release :key (versions-key versions nightly-pub)
+            :tried-key (tried-key versions nightly-pub (:now in)
+                                  (or (:retry-hours in) default-retry-hours))}
            (interval-decision in))))
 
 (defn needs-last-built-at?
@@ -168,24 +188,28 @@
 
 (defn final-decision
   "Combine the interval decision (interval-ok, the string \"true\" or not)
-  with the change gate (already-green, the cache step's cache-hit output,
-  blank when the step did not run). {:proceed bool :log line}."
-  [{:keys [interval-ok already-green reason key]}]
+  with the two cache gates (already-green and already-tried, the cache steps'
+  cache-hit outputs, blank when the step did not run). A hit on the tried key
+  means a non-passing run of this version set already happened in the current
+  retry window (R35). {:proceed bool :log line}."
+  [{:keys [interval-ok already-green already-tried reason key]}]
   (cond
     (not= "true" interval-ok)    {:proceed false :log (str "SKIPPING: " reason)}
     (= "true" already-green)     {:proceed false :log (str "SKIPPING: " key " already passed, so jolt has not moved")}
+    (= "true" already-tried)     {:proceed false :log "SKIPPING: already tried in this window"}
     :else                        {:proceed true :log (str "RUNNING: " reason)}))
 
 (defn outputs-text
   "plan's result as the lines the job writes to $GITHUB_OUTPUT. The keys are
-  the ones the plan job exposes: versions, proceed, reason, key, nightly,
-  nightly_json, latest."
-  [{:keys [versions proceed reason key nightly nightly-json latest]}]
+  the ones the plan job exposes: versions, proceed, reason, key, tried_key,
+  nightly, nightly_json, latest."
+  [{:keys [versions proceed reason key tried-key nightly nightly-json latest]}]
   (str "latest=" latest "\n"
        "versions=" (json/generate-string versions) "\n"
        "nightly=" nightly "\n"
        "nightly_json=" (if nightly-json (json/generate-string nightly-json) "null") "\n"
        "key=" key "\n"
+       "tried_key=" tried-key "\n"
        "proceed=" proceed "\n"
        "reason=" reason "\n"))
 
@@ -249,7 +273,12 @@
 ;; ---------------------------------------------------------------------------
 ;; Pure: the report
 
-(def ^:private finding? #{"fail" "mismatch" "timed-out" "dispatch-failed"})
+(def ^:private finding? #{"fail" "mismatch" "timed-out"})
+
+;; R36: a dispatch that never started says nothing about jolt. It is our App or
+;; configuration, so the issue groups it with infra. The result value on the
+;; status page stays dispatch-failed.
+(def ^:private infra-result? #{"infra" "dispatch-failed"})
 
 (defn- cells
   "Sorted, distinct \"name (version)\" strings for projects whose result
@@ -260,13 +289,15 @@
        distinct sort vec))
 
 (defn verdict
-  "{:failed [...] :infra [...]} from the merged results. fail, mismatch,
-  timed-out and dispatch-failed are findings about jolt or the build. infra
-  (jolt not installable, or a dependency not downloadable) is not a finding
-  about jolt, so it is reported separately, with each project's failed step."
+  "{:failed [...] :infra [...]} from the merged results. fail, mismatch and
+  timed-out are findings about jolt or the build. infra (jolt not installable,
+  or a dependency not downloadable) and dispatch-failed (the run never
+  started) are not findings about jolt, so they are reported separately, with
+  each project's failed step (for a dispatch failure, the first line gh
+  printed)."
   [results]
   {:failed (cells results finding? (fn [v _] v))
-   :infra  (cells results #{"infra"}
+   :infra  (cells results infra-result?
                   (fn [v p] (str v (when (:failed_step p) (str ", failed step: " (:failed_step p))))))})
 
 (defn- lines [& ls] (str/join "\n" ls))
@@ -308,10 +339,12 @@
               ""
               "A project either could not install jolt (check its `JOLT_REPO`,"
               "which should be unset unless deliberately aimed at a fork, since the"
-              "version may not exist in the repository it installs from) or could"
+              "version may not exist in the repository it installs from), could"
               "not download a dependency (a package registry problem, often Maven"
-              "Central rate limiting while several projects build at once). The"
-              "failed step in parentheses above shows which."
+              "Central rate limiting while several projects build at once), or"
+              "could not be dispatched (the jlt-commons-ci App lacks access to the"
+              "repository, or GitHub refused the dispatch). The failed step in"
+              "parentheses above shows which."
               ""
               (str "**Versions tested:** " versions)
               ""

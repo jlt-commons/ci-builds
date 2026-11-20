@@ -215,11 +215,15 @@
         interval  (if (= "schedule" event)
                     (hours-or-default (get env "INTERVAL_HOURS") 0 "CANARY_INTERVAL_HOURS")
                     0)
+        retry     (if (= "schedule" event)
+                    (hours-or-default (get env "RETRY_HOURS") canary/default-retry-hours "CANARY_RETRY_HOURS")
+                    canary/default-retry-hours)
         max-age   (hours-or-default (get env "NIGHTLY_MAX_AGE_HOURS") 48 "NIGHTLY_MAX_AGE_HOURS")
         repo      (get env "GITHUB_REPOSITORY")
         in        (merge {:requested      requested
                           :event          event
                           :interval-hours interval
+                          :retry-hours    retry
                           :max-age-hours  max-age
                           :now            (now-iso)}
                          (canary/gather gh requested))
@@ -237,6 +241,7 @@
   [env]
   (let [{:keys [proceed log]} (canary/final-decision {:interval-ok   (get env "INTERVAL_OK")
                                                       :already-green (get env "ALREADY_GREEN")
+                                                      :already-tried (get env "ALREADY_TRIED")
                                                       :reason        (get env "REASON")
                                                       :key           (get env "KEY")})]
     (append-output! env (str "proceed=" proceed "\n"))
@@ -245,8 +250,9 @@
 (defn plan-main
   "fleet:plan: the canary plan job's decide step. With --final, the step
   after the change-gate cache lookup. Env for the decide step: REQUESTED,
-  EVENT, INTERVAL_HOURS, NIGHTLY_MAX_AGE_HOURS, GITHUB_REPOSITORY, GH_TOKEN,
-  GITHUB_OUTPUT. Env for --final: INTERVAL_OK, ALREADY_GREEN, REASON, KEY."
+  EVENT, INTERVAL_HOURS, RETRY_HOURS, NIGHTLY_MAX_AGE_HOURS,
+  GITHUB_REPOSITORY, GH_TOKEN, GITHUB_OUTPUT. Env for --final: INTERVAL_OK,
+  ALREADY_GREEN, ALREADY_TRIED, REASON, KEY."
   ([args] (plan-main args (into {} (System/getenv)) {}))
   ([args env deps]
    (case (vec args)

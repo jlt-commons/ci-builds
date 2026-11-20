@@ -187,7 +187,7 @@
     (is (= "0.8.27" (o "latest")))
     (is (= "true" (o "proceed")))
     (is (= "manual run, gates skipped" (o "reason")))
-    (is (= #{"latest" "versions" "nightly" "nightly_json" "key" "proceed" "reason"} (set (keys o))))
+    (is (= #{"latest" "versions" "nightly" "nightly_json" "key" "tried_key" "proceed" "reason"} (set (keys o))))
     (is (str/starts-with? (o "versions") "[\"0.8.27\""))))
 
 (deftest plan-final-writes-proceed
@@ -198,6 +198,15 @@
     (is (= 0 (:rc r)))
     (is (= "proceed=false\n" (slurp out)))
     (is (str/includes? (:out r) "SKIPPING: canary-green-0.8.27 already passed"))))
+
+(deftest plan-final-an-already-tried-hit-gates-the-tick
+  (let [d   (tmp-dir)
+        out (str d "/out")
+        r   (run #(cli/plan-main ["--final"] {"INTERVAL_OK" "true" "ALREADY_GREEN" "false" "ALREADY_TRIED" "true"
+                                              "REASON" "due" "KEY" "k" "GITHUB_OUTPUT" out} {}))]
+    (is (= 0 (:rc r)))
+    (is (= "proceed=false\n" (slurp out)))
+    (is (str/includes? (:out r) "SKIPPING: already tried in this window"))))
 
 (deftest plan-usage-error
   (is (= 2 (:rc (run #(cli/plan-main ["--nope"] {} {}))))))
@@ -249,11 +258,21 @@
 (deftest plan-schedule-with-a-junk-interval-warns-and-uses-zero
   (let [r (plan-out {"EVENT" "schedule" "INTERVAL_HOURS" "soon"})]
     (is (= 0 (:rc r)))
-    (is (str/includes? (:out r) "::warning::CANARY_INTERVAL_HOURS is not a whole number of hours: soon, using 0"))
+    (is (str/includes? (:out r) "::warning::CANARY_INTERVAL_HOURS is not a whole number of hours, using 0"))
+    (is (not (str/includes? (:out r) "soon")))
     (is (= "no interval gate" (get-in r [:o "reason"])))))
+
+(deftest plan-schedule-writes-a-tried-key-with-the-retry-window
+  (let [r (plan-out {"EVENT" "schedule" "RETRY_HOURS" "3"})]
+    (is (re-matches #"canary-tried-0\.8\.27-nightly-\d+-\d+" (get-in r [:o "tried_key"])))
+    (is (= 0 (:rc r))))
+  (testing "junk warns without echoing the value, and falls back to 6"
+    (let [r (plan-out {"EVENT" "schedule" "RETRY_HOURS" "soon"})]
+      (is (str/includes? (:out r) "::warning::CANARY_RETRY_HOURS is not a whole number of hours, using 6"))
+      (is (not (str/includes? (:out r) "soon"))))))
 
 (deftest plan-junk-max-age-warns-and-uses-48
   (let [r (plan-out {"EVENT" "workflow_dispatch" "NIGHTLY_MAX_AGE_HOURS" "x"})]
     (is (= 0 (:rc r)))
-    (is (str/includes? (:out r) "::warning::NIGHTLY_MAX_AGE_HOURS is not a whole number of hours: x, using 48"))
+    (is (str/includes? (:out r) "::warning::NIGHTLY_MAX_AGE_HOURS is not a whole number of hours, using 48"))
     (is (= "true" (get-in r [:o "proceed"])))))

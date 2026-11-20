@@ -139,11 +139,31 @@
   (is (= 48 (canary/parse-hours nil 48 "X")))
   (is (= 48 (canary/parse-hours "" 48 "X")))
   (is (= 6 (canary/parse-hours "6" 48 "X")))
-  (is (= "X is not a whole number of hours: soon"
+  (is (= "X is not a whole number of hours"
          (ex-message (try (canary/parse-hours "soon" 48 "X") nil (catch Exception e e))))))
 
 ;; ---------------------------------------------------------------------------
 ;; the change gate
+
+(deftest tried-key-is-stable_inside_a_window_and_moves_with_the_window
+  (let [k (fn [& {:as over}] (:tried-key (plan over)))]
+    (testing "same window, same key"
+      (is (= (k :now "2026-11-20T12:00:00Z" :retry-hours 6)
+             (k :now "2026-11-20T17:59:59Z" :retry-hours 6))))
+    (testing "next window, new key"
+      (is (not= (k :now "2026-11-20T17:59:59Z" :retry-hours 6)
+                (k :now "2026-11-20T18:00:00Z" :retry-hours 6))))
+    (testing "shape: versions part of the green key plus epoch-hours div retry-hours"
+      ;; 2026-11-20T12:00:00Z is 498660 epoch hours (measured), 498660 div 6 = 83110
+      (is (= "canary-tried-0.8.27-83110" (k :now "2026-11-20T12:00:00Z" :retry-hours 6))))
+    (testing "a nightly's published_at and a new release both change it"
+      (is (= "canary-tried-0.8.27-nightly-20261119213015-83110"
+             (:tried-key (plan :nightly-release fresh-nightly :retry-hours 6))))
+      (is (not= (k :retry-hours 6) (k :retry-hours 6 :latest-release "0.8.28"
+                                      :release-shas {"0.8.28" "aa"}))))
+    (testing "retry-hours defaults to 6 and never divides by zero"
+      (is (= (k :retry-hours 6) (k)))
+      (is (= (k :retry-hours 1) (k :retry-hours 0))))))
 
 (deftest final-decision-combines-both-gates
   (testing "interval says no"
@@ -155,6 +175,15 @@
   (testing "cache miss"
     (is (= {:proceed true :log "RUNNING: due"}
            (canary/final-decision {:interval-ok "true" :already-green "false" :reason "due" :key "k"}))))
+  (testing "already tried in this window gates like a green hit"
+    (is (= {:proceed false :log "SKIPPING: already tried in this window"}
+           (canary/final-decision {:interval-ok "true" :already-green "false" :already-tried "true" :reason "due" :key "k"}))))
+  (testing "a tried-cache miss runs"
+    (is (= {:proceed true :log "RUNNING: due"}
+           (canary/final-decision {:interval-ok "true" :already-green "false" :already-tried "false" :reason "due" :key "k"}))))
+  (testing "green hit wins the wording over tried"
+    (is (= {:proceed false :log "SKIPPING: k already passed, so jolt has not moved"}
+           (canary/final-decision {:interval-ok "true" :already-green "true" :already-tried "true" :reason "due" :key "k"}))))
   (testing "no cache step ran (manual run)"
     (is (= {:proceed true :log "RUNNING: manual run, gates skipped"}
            (canary/final-decision {:interval-ok "true" :already-green "" :reason "manual run, gates skipped" :key "k"})))))
@@ -292,7 +321,7 @@
     (is (str/ends-with? (:body r) "dispatching its own ci.yml with the `jolt-version` input."))))
 
 (deftest mismatch-and-dispatch-failed-break-too
-  (doseq [bad ["mismatch" "dispatch-failed" "timed-out" "fail"]]
+  (doseq [bad ["mismatch" "timed-out" "fail"]]
     (testing bad
       (let [r (ib :results [(res "nightly" ["glitter" bad])])]
         (is (true? (:broken? r)))
@@ -309,6 +338,19 @@
     (is (str/includes? (:body r) "could\nnot download a dependency"))
     (is (str/includes? (:body r) "**Versions tested:** [\"0.8.27\"]"))
     (is (str/ends-with? (:body r) "has the per-project table. Dashboard: https://jlt-commons.github.io/fleet/"))))
+
+(deftest r36-dispatch-failed-is-grouped-with-infra-for-the-issue
+  (testing "alone: infra wording, naming the project and gh's line, not a jolt finding"
+    (let [r (ib :results [(res "0.8.27" ["raylib-ios-demo" "dispatch-failed" "HTTP 404: Not Found"])])]
+      (is (true? (:broken? r)))
+      (is (true? (:infra? r)))
+      (is (str/starts-with? (:body r) "Infra problems, not findings about jolt: raylib-ios-demo (0.8.27, failed step: HTTP 404: Not Found)\n"))
+      (is (str/includes? (:body r) "could not be dispatched"))
+      (is (not (str/includes? (:body r) "**Failing:**")))))
+  (testing "beside a real failure it is reported as a failure, as other infra is"
+    (let [r (ib :results [(res "0.8.27" ["glitter" "fail"] ["x" "dispatch-failed"])])]
+      (is (false? (:infra? r)))
+      (is (str/includes? (:body r) "**Failing:** glitter (0.8.27)\n")))))
 
 (deftest infra-plus-a-real-failure-is-reported-as-a-failure
   (let [r (ib :results [(res "0.8.27" ["glitter" "fail"] ["ebb" "infra" "Install jolt"])])]
@@ -406,7 +448,7 @@
   (let [p   (plan :nightly-release fresh-nightly)
         txt (canary/outputs-text p)
         kv  (into {} (map #(str/split % #"=" 2)) (str/split-lines txt))]
-    (is (= #{"latest" "versions" "nightly" "nightly_json" "key" "proceed" "reason"} (set (keys kv))))
+    (is (= #{"latest" "versions" "nightly" "nightly_json" "key" "tried_key" "proceed" "reason"} (set (keys kv))))
     (is (= "[\"0.8.27\",\"nightly\"]" (kv "versions")))
     (is (= "true" (kv "proceed")))
     (is (= (:nightly-json p) (json/parse-string (kv "nightly_json") true)))
