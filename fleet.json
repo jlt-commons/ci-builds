@@ -1,0 +1,6 @@
+{"projects": ["glitter", "glitter-gl", "glitter-uikit", "raygui-jlt", "raylib-jlt", "raylib-ios", "raylib-android", "ensemble", "ebb", "docs-engine"],
+ "excluded": {"jolt-lsp": "its dispatch input releases jolt-lsp; needs a jolt-version input first",
+              "ci-builds": "this repository",
+              "demo-repository": "private demo",
+              "raylib-jolt-demo": "waiting on the jlt-commons-ci App installation",
+              "raylib-ios-demo": "waiting on the jlt-commons-ci App installation"}}

@@ -1,0 +1,7 @@
+name: ci
+true:
+  workflow_dispatch:
+    inputs:
+      jolt-version:
+        type: string
+jobs: {}

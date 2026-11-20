@@ -1,0 +1,34 @@
+name: test
+
+on:
+  push:
+    # The status branch holds data files only.
+    branches-ignore: [status]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  # The tool jolt: runs the fleet tools and their tests. Pinned so a release
+  # published overnight can't turn this red on an untouched tree. This is not
+  # the jolt the fleet is tested against.
+  TOOLS_JOLT_VERSION: ${{ vars.TOOLS_JOLT_VERSION || '0.8.27' }}
+
+jobs:
+  jolt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jlt-commons/setup-jolt@v1
+        with:
+          version: ${{ env.TOOLS_JOLT_VERSION }}
+      - uses: actions/cache@v6.1.0
+        with:
+          path: ~/.jolt/gitlibs
+          key: jolt-gitlibs-${{ hashFiles('deps.edn') }}
+      # jolt.yaml loads libyaml. Install it when the runner image lacks it, so
+      # an image change cannot turn this red for a reason unrelated to the tree.
+      - run: |
+          dpkg -s libyaml-0-2 >/dev/null 2>&1 || { sudo apt-get update && sudo apt-get install -y libyaml-0-2; }
+      - run: jolt test

@@ -1,0 +1,1 @@
+{"jobs":[{"conclusion":"success","steps":[{"name":"Checkout","conclusion":"success"}]},{"conclusion":"failure","steps":[{"name":"Install","conclusion":"success"},{"name":"Run tests","conclusion":"failure"}]}]}

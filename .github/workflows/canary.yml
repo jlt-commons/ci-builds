@@ -4,91 +4,67 @@ name: canary
 # Ask, on a schedule, whether the jolt versions this fleet cares about still
 # build every project. Two of them:
 #
-#   pinned   what the projects actually pin today. Read from the vars.JOLT_PIN
-#            repo variable, which is the live source of truth and needs
-#            bumping by hand once a new release is validated (fan-out it
-#            manually first); the script's own 0.8.1 fallback only matters if
-#            that variable is ever unset entirely.
 #   latest   jolt's newest published release
+#   nightly  jolt's rolling vnightly prerelease, when fresh
 #
-# Identical while the fleet is up to date, and the run collapses to one build
-# when they are. They diverge the moment jolt ships a release nobody has adopted
-# yet, which is precisely the window this is meant to cover.
+# The decisions live in src/fleet/canary.clj, which says why each rule exists:
+# the nightly freshness and duplicate-of-release checks, the cache key that
+# carries the nightly's published_at, the interval gate, and what the issue
+# says. This file wires them to jobs. The plan job runs `jolt fleet:plan`
+# (what to test, and the interval gate), then an actions/cache lookup (the
+# change gate, which a task cannot do), then `jolt fleet:plan --final` to
+# combine the two. The report job runs `jolt fleet:report`.
 #
-# NIGHTLY IS AVAILABLE NOW, and this block used to say it was not. jolt-lang/jolt#824
-# merged 2026-09-02 and jolt publishes a rolling `vnightly` prerelease from main,
-# so `install --version nightly` resolves it and the whole "build it from source
-# against Chez on two operating systems" plan this file used to describe is moot.
-# The fleet has been run against it: fan-out 33691047983, all five green, every
-# project's log showing `Successfully installed jolt vnightly`.
+# What each project pins is not a row here. The `status` job reads every
+# project's own latest push CI run on its default branch and shows it as the
+# "pin" column on the dashboard, so the pin is observed rather than configured.
 #
-# It is in the matrix, BEHIND A FRESHNESS CHECK, and the check is the whole reason
-# the row can be trusted. jolt's publish-nightly runs only after its `libraries`
-# and `libraries-db` gates, and it publishes by staging a draft, DELETING the old
-# release, then moving the tag. So a lagging downstream library withholds the NEW
-# artifact while the PREVIOUS vnightly stays up and installs perfectly.
+# Every run also ends with the `status` job, which merges the results into
+# status.json and history.json on the `status` branch. The fleet page reads
+# those two files. A gated tick still runs it, so the pin column keeps up with
+# each project's own CI while jolt stands still. Publishing commits only when
+# the content changed, or when the last commit is 6 or more hours old (a
+# heartbeat, about 4 commits a day), so the dashboard's generated_at moves at
+# least that often and its 12 hour staleness banner fires only when the canary
+# has really stopped.
 #
-# That is not hypothetical. jolt's own first nightly run published nothing at all,
-# because `library db`, `library db (postgres)` and `library transit-jolt` were
-# failing on main with "No dependency provides Locale ... a library supplies one by
-# declaring :jolt/provides (RFC 0014)", the same breaking change v0.8.1 announced.
-#
-# Without a check, a `nightly` row that goes green cannot distinguish "main is
-# healthy" from "main broke four days ago and we keep testing Tuesday's binary",
-# and a green row that cannot go red is worse than no row, because it reads as
-# coverage. So: read the vnightly release's published_at, SKIP the row when the
-# artifact is older than vars.NIGHTLY_MAX_AGE_HOURS (default 48), and stamp the
-# age on every result either way. A skipped row says so; it never passes quietly.
-#
-# FRESH IS NOT ENOUGH, which the first version of this got wrong. jolt tags
-# vnightly at whatever main was when the nightly job ran, and that is often the
-# release tag itself. Measured 2026-09-02: vnightly and v0.8.1 both pointed at
-# 9b768395, identical, three hours old and perfectly fresh, while main had
-# already moved 7 commits past both. Recorded as tag-plus-SHA on purpose: that SHA sat on upstream's PRE-FORCE-PUSH line. jolt force-pushed main on
-# 2026-09-03 and moved both 0.8.x tags to byte-identical commits, so it no
-# longer resolves against upstream's history. Which is the argument for this
-# check comparing tags at RUNTIME rather than trusting a recorded id: a SHA is
-# a label that can be orphaned, and `git rev-parse` still answers cheerfully
-# from a local object store when it has been. The row ran, went green, and reported the
-# same commit the 0.8.1 row had just built as if it were a second answer. So the
-# nightly's commit is compared against the release rows' too, and a match skips
-# it as redundant rather than double-counting one build as two.
-#
-# The published_at also goes into the cache key. Without that, the change gate
-# would see the literal string "nightly", find it unchanged from yesterday, and
-# suppress every future nightly run after the first green.
-#
-# The pinned and latest rows are RELEASES, which have none of this problem: a
-# release is immutable once published, so its row means what it says.
-#
-# TWO GATES, so an hourly tick is cheap:
-#
-#   interval  vars.CANARY_INTERVAL_HOURS (default 1). The cron itself cannot be
-#             a variable, GitHub requires a literal, so the schedule ticks
-#             hourly and this decides whether a tick does anything.
-#   change    a run is skipped when this exact version set has already been
-#             tested green. Keyed in the Actions cache, so no extra permissions
-#             and nothing to commit back to the repository.
-#
+# vars.CANARY_INTERVAL_HOURS (default 0, no interval gate) holds a scheduled
+# tick back. The cron itself cannot be a variable, GitHub requires a literal.
+# vars.NIGHTLY_MAX_AGE_HOURS (default 48) is the nightly freshness limit.
+# vars.CANARY_RETRY_HOURS (default 6) sizes the retry window: a version set
+# that did not pass is tried once per window, and a new version set is tried at
+# once.
 # A manual dispatch ignores both gates. That is the point of a manual dispatch.
 # ---------------------------------------------------------------------------
 
 on:
   schedule:
-    # Hourly, at 7 past. Not on the hour, where GitHub's scheduler is most
-    # congested and most likely to delay or drop a run.
-    - cron: "7 * * * *"
+    # Every 15 minutes, offset from the quarter hours, where GitHub's
+    # scheduler is most congested and most likely to delay or drop a run.
+    - cron: "7,22,37,52 * * * *"
   workflow_dispatch:
     inputs:
       jolt-version:
-        description: "Test only this version (blank = the pinned + latest pair)"
+        description: "Test only this version (blank = latest, plus nightly when fresh)"
         required: false
         default: ""
 
+# Read only. The report job's App token carries issues: write, and the status
+# job's own block adds contents: write, so nothing else holds either.
 permissions:
   contents: read
-  issues: write
   actions: read
+
+env:
+  # The tool jolt: runs the fleet tools. Pinned, and never the jolt under test.
+  TOOLS_JOLT_VERSION: ${{ vars.TOOLS_JOLT_VERSION || '0.8.27' }}
+
+# One canary at a time. A run that outlives its 15-minute tick must not race
+# the next one on the status branch, and cancelling it would lose its results,
+# so later runs wait (GitHub keeps only the newest waiting one).
+concurrency:
+  group: canary
+  cancel-in-progress: false
 
 jobs:
   plan:
@@ -99,142 +75,39 @@ jobs:
       proceed: ${{ steps.final.outputs.proceed }}
       reason: ${{ steps.decide.outputs.reason }}
       key: ${{ steps.decide.outputs.key }}
+      tried_key: ${{ steps.decide.outputs.tried_key }}
       nightly: ${{ steps.decide.outputs.nightly }}
+      latest: ${{ steps.decide.outputs.latest }}
+      nightly_json: ${{ steps.decide.outputs.nightly_json }}
     steps:
+      - uses: actions/checkout@v7
+
+      - uses: jlt-commons/setup-jolt@v1
+        with:
+          version: ${{ env.TOOLS_JOLT_VERSION }}
+
+      - uses: actions/cache@v6.1.0
+        with:
+          path: ~/.jolt/gitlibs
+          key: jolt-gitlibs-${{ hashFiles('deps.edn') }}
+
+      # jolt.yaml loads libyaml, which the runner image carries today. Say so
+      # explicitly so an image change cannot break the tools silently.
+      - run: |
+          dpkg -s libyaml-0-2 >/dev/null 2>&1 || { sudo apt-get update && sudo apt-get install -y libyaml-0-2; }
+
+      # Latest is resolved on every event, a manual dispatch included, because
+      # the status page shows what latest is whatever was asked for.
       - name: Work out what to test, and whether to bother
         id: decide
         env:
           REQUESTED: ${{ inputs.jolt-version }}
-          PIN: ${{ vars.JOLT_PIN }}
           INTERVAL_HOURS: ${{ vars.CANARY_INTERVAL_HOURS }}
+          RETRY_HOURS: ${{ vars.CANARY_RETRY_HOURS }}
           NIGHTLY_MAX_AGE_HOURS: ${{ vars.NIGHTLY_MAX_AGE_HOURS }}
           EVENT: ${{ github.event_name }}
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          pin="${PIN:-0.8.1}"
-          interval="${INTERVAL_HOURS:-1}"
-
-          max_age="${NIGHTLY_MAX_AGE_HOURS:-48}"
-          nightly_pub=""
-          nightly=""
-
-          if [ -n "$REQUESTED" ]; then
-            versions="[\"$REQUESTED\"]"
-            nightly="manual dispatch of $REQUESTED, freshness gate not applied"
-            echo "manual dispatch, testing $REQUESTED only"
-          else
-            latest="$(curl -fsSL https://api.github.com/repos/jolt-lang/jolt/releases/latest \
-                      | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -1)"
-            latest="${latest#v}"
-            [ -n "$latest" ] || { echo "could not resolve jolt's latest release" >&2; exit 1; }
-
-            # The release rows first, because the nightly block compares against
-            # them. $latest is dropped when it equals the pin, so a current fleet
-            # collapses to one release build.
-            set -- "$pin"
-            [ "$latest" != "$pin" ] && set -- "$@" "$latest"
-
-            # The nightly is a PRERELEASE, so releases/latest never returns it and
-            # the two resolutions cannot collide. Read it by tag.
-            #
-            # A missing release is not an error here: jolt could stop publishing
-            # nightlies and the release rows would still be worth running. It is a
-            # skipped row with a stated reason, like a stale one.
-            pub="$(curl -fsSL https://api.github.com/repos/jolt-lang/jolt/releases/tags/vnightly \
-                   | sed -n 's/.*"published_at": *"\([^"]*\)".*/\1/p' | head -1)"
-            if [ -z "$pub" ]; then
-              nightly="nightly SKIPPED: no vnightly release found"
-            else
-              age=$(( ( $(date -u +%s) - $(date -u -d "$pub" +%s 2>/dev/null || echo 0) ) / 3600 ))
-              if [ "$age" -gt "$max_age" ]; then
-                nightly="nightly SKIPPED: published $pub, ${age}h old, limit ${max_age}h. jolt's publish-nightly is gated on its downstream library suites, so a lagging library withholds new builds while the old one stays installable"
-              else
-                # Fresh is necessary and NOT sufficient. jolt tags vnightly at
-                # whatever main was when the nightly job ran, and that is
-                # regularly the release tag itself: measured 2026-09-02, vnightly
-                # and v0.8.1 both pointed at 9b768395 (on upstream's line as it
-                # stood that day; main was force-pushed and both 0.8.x tags moved
-                # to byte-identical commits on 2026-09-03, which is exactly why
-                # this compares tags live instead of a recorded SHA), identical,
-                # while main had already moved 7 commits past it. A row built from the same
-                # commit as a release row is not a second data point, it is the
-                # same data point rendered twice, and it reads as coverage.
-                #
-                # Lightweight tags on this repo, so object.sha IS the commit and
-                # one sed suffices. Verified against a real parse of both refs.
-                nsha="$(curl -fsSL https://api.github.com/repos/jolt-lang/jolt/git/refs/tags/vnightly \
-                        | sed -n 's/.*"sha": *"\([^"]*\)".*/\1/p' | head -1)"
-                dupe=""
-                for v in "$@"; do
-                  vsha="$(curl -fsSL "https://api.github.com/repos/jolt-lang/jolt/git/refs/tags/v$v" \
-                          | sed -n 's/.*"sha": *"\([^"]*\)".*/\1/p' | head -1)"
-                  [ -n "$nsha" ] && [ "$vsha" = "$nsha" ] && dupe="$v"
-                done
-                if [ -n "$dupe" ]; then
-                  nightly="nightly SKIPPED: vnightly is ${nsha:0:8}, the same commit as $dupe, so the row would rebuild what $dupe already covers"
-                else
-                  nightly_pub="$pub"
-                  nightly="nightly published $pub, ${age}h old, at ${nsha:0:8}"
-                fi
-              fi
-            fi
-
-            [ -n "$nightly_pub" ] && set -- "$@" "nightly"
-            versions="[$(printf '"%s",' "$@" | sed 's/,$//')]"
-            echo "testing $versions"
-          fi
-          echo "versions=$versions" >> "$GITHUB_OUTPUT"
-          echo "nightly=$nightly" >> "$GITHUB_OUTPUT"
-          echo "$nightly"
-
-          # The cache key IS the change detector. A new jolt release changes the
-          # version set, which changes the key, which misses the cache.
-          #
-          # The nightly needs the published_at folded in, because the literal
-          # string "nightly" is identical from one day to the next. Without it the
-          # first green would cache a key that every later run also computes, and
-          # the nightly row would never run again however far main moved.
-          key="canary-green-$(printf '%s' "$versions" | tr -d '[]" ' | tr ',' '-')"
-          [ -n "$nightly_pub" ] && key="$key-$(printf '%s' "$nightly_pub" | tr -cd '0-9')"
-          echo "key=$key" >> "$GITHUB_OUTPUT"
-
-          if [ "$EVENT" != "schedule" ]; then
-            echo "proceed=true" >> "$GITHUB_OUTPUT"
-            echo "reason=manual run, gates skipped" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # Interval gate, measured from the last canary that actually BUILT
-          # something, not the last tick.
-          #
-          # A gated tick still finishes as a run whose conclusion is "success"
-          # (plan succeeded, everything downstream skipped), so counting runs
-          # would reset the clock every hour and an interval above 1 would never
-          # come due. The tell is whether a run has any `jolt <version>` job:
-          # those exist only when the matrix actually ran.
-          last=""
-          for id in $(gh run list --repo "$GITHUB_REPOSITORY" --workflow canary.yml \
-                        --status completed --limit 12 --json databaseId \
-                        --jq '.[].databaseId' 2>/dev/null); do
-            if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs" \
-                 --jq '.jobs[].name' 2>/dev/null | grep -q '^jolt '; then
-              last="$(gh run view "$id" --repo "$GITHUB_REPOSITORY" \
-                       --json updatedAt --jq .updatedAt 2>/dev/null || true)"
-              break
-            fi
-          done
-          if [ -n "$last" ]; then
-            age=$(( ( $(date -u +%s) - $(date -u -d "$last" +%s 2>/dev/null || echo 0) ) / 3600 ))
-            if [ "$age" -lt "$interval" ]; then
-              echo "proceed=false" >> "$GITHUB_OUTPUT"
-              echo "reason=last run was ${age}h ago, interval is ${interval}h" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-          fi
-
-          echo "proceed=true" >> "$GITHUB_OUTPUT"
-          echo "reason=due" >> "$GITHUB_OUTPUT"
+        run: jolt fleet:plan
 
       # Change gate. A hit means this exact version set already passed, so
       # nothing about jolt has moved and there is nothing to learn.
@@ -247,7 +120,21 @@ jobs:
           key: ${{ steps.decide.outputs.key }}
           lookup-only: true
 
-      # Both gates land here. A step cannot rewrite an earlier step's output,
+      # Retry backoff (R35). A run that did not pass saves this key, which
+      # holds the version set and the current window (epoch hours div
+      # vars.CANARY_RETRY_HOURS, default 6). A hit means this exact set was
+      # already tried in this window, so a known-bad set is retried once per
+      # window while a new version set has a new key and runs on the next tick.
+      - name: Have we already tried this version set in this window?
+        id: tried
+        if: steps.decide.outputs.proceed == 'true' && github.event_name == 'schedule'
+        uses: actions/cache/restore@v6.1.0
+        with:
+          path: .canary-state
+          key: ${{ steps.decide.outputs.tried_key }}
+          lookup-only: true
+
+      # The gates land here. A step cannot rewrite an earlier step's output,
       # so the job's `proceed` reads THIS step and not `decide`, which knows
       # only about the interval.
       - name: Final decision
@@ -255,20 +142,10 @@ jobs:
         env:
           INTERVAL_OK: ${{ steps.decide.outputs.proceed }}
           ALREADY_GREEN: ${{ steps.seen.outputs.cache-hit }}
+          ALREADY_TRIED: ${{ steps.tried.outputs.cache-hit }}
           REASON: ${{ steps.decide.outputs.reason }}
           KEY: ${{ steps.decide.outputs.key }}
-        run: |
-          set -euo pipefail
-          if [ "$INTERVAL_OK" != "true" ]; then
-            echo "proceed=false" >> "$GITHUB_OUTPUT"
-            echo "SKIPPING: $REASON"
-          elif [ "$ALREADY_GREEN" = "true" ]; then
-            echo "proceed=false" >> "$GITHUB_OUTPUT"
-            echo "SKIPPING: $KEY already passed, so jolt has not moved"
-          else
-            echo "proceed=true" >> "$GITHUB_OUTPUT"
-            echo "RUNNING: $REASON"
-          fi
+        run: jolt fleet:plan --final
 
   fleet:
     name: jolt ${{ matrix.version }}
@@ -277,39 +154,122 @@ jobs:
     strategy:
       fail-fast: false
       # ONE version at a time. Each leg's fan-out dispatches every project's
-      # own ci.yml on `main`, and with two or three legs in flight together
-      # that is two or three near-simultaneous workflow_dispatch calls
-      # against the SAME project on the SAME ref. raylib-ios's concurrency
-      # group cancels unconditionally (`cancel-in-progress: true`, no ref
-      # guard), so its earlier dispatches die within a couple of seconds of
-      # the next one starting - reproduced 2026-09-05, run 33999584713:
-      # raylib-ios cancelled (not failed) in both the nightly and 0.8.1 legs,
-      # created and cancelled a mere 2-3s apart. glitter-gl's own dispatch
-      # was cancelled the same run despite ITS concurrency group being
-      # ref-guarded false on main, same instant cancellation pattern (2s),
-      # so something outside any one project's own workflow file also
-      # collides two of these together, not only raylib-ios's config.
-      # Either way, `fanout.yml` treats a "cancelled" conclusion the same as
-      # a genuine build failure and reports "jolt breaks the fleet" (issue
-      # #5) for a version nothing actually failed against - every leg that
-      # finished normally that run was green. max-parallel: 1 removes the
-      # race outright: legs run one after another, so no project is ever
-      # dispatched twice at once. Costs wall-clock (up to ~3x on a run that
-      # tests all three rows), not correctness, and an hourly cron has the
-      # room.
+      # own ci.yml on `main`, and two legs in flight together would dispatch
+      # the SAME project on the SAME ref twice within seconds. A project whose
+      # concurrency group cancels in progress (raylib-ios does, with no ref
+      # guard) then loses the earlier run: in run 33999584713 it was cancelled
+      # in both the nightly and 0.8.1 legs, 2-3s after being created.
+      # max-parallel: 1 runs the legs one after another, so no project is
+      # dispatched twice at once. It costs wall-clock (up to ~2x on a run that
+      # tests both rows) and nothing else. The concurrency group keeps
+      # overlapping ticks from stacking up, and a run that is cancelled anyway
+      # reads not-run in fan-out, never fail (R37).
       max-parallel: 1
       matrix:
         version: ${{ fromJSON(needs.plan.outputs.versions) }}
+    # A called workflow cannot hold more than its caller grants, and fan-out's
+    # ad-hoc publish job asks for contents: write. It skips under canary, but
+    # GitHub checks the request when it parses the file, so the cap is raised
+    # here. fan-out's own jobs still declare contents: read.
+    permissions:
+      contents: write
+      actions: read
     uses: ./.github/workflows/fanout.yml
     with:
       jolt-version: ${{ matrix.version }}
     secrets: inherit
 
+  # Merge this run's results into status.json and history.json on the `status`
+  # branch. Runs on gated ticks too (no results files then), so the pin column
+  # and the timestamp keep moving. contents: write is granted here and nowhere
+  # else; the App token is only for the collectors' cross-repo reads.
+
+  status:
+    needs: [plan, fleet]
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: jlt-commons/setup-jolt@v1
+        with:
+          version: ${{ env.TOOLS_JOLT_VERSION }}
+
+      - uses: actions/cache@v6.1.0
+        with:
+          path: ~/.jolt/gitlibs
+          key: jolt-gitlibs-${{ hashFiles('deps.edn') }}
+
+      # jolt.yaml loads libyaml, which the runner image carries today. Say so
+      # explicitly so an image change cannot break the tools silently.
+      - run: |
+          dpkg -s libyaml-0-2 >/dev/null 2>&1 || { sudo apt-get update && sudo apt-get install -y libyaml-0-2; }
+
+      - name: Mint an installation token
+        id: token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ secrets.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: jlt-commons
+          # Cross-repo reads only: each project's ci.yml, runs and jobs.
+          permission-contents: read
+          permission-actions: read
+
+      # Reusable-workflow artifacts belong to this (the caller's) run. A gated
+      # tick has none, so the step is skipped there rather than trusting the
+      # action to treat "no match" as success; the script copes with no results.
+      - uses: actions/download-artifact@v8
+        if: needs.fleet.result != 'skipped'
+        # An artifact that cannot be fetched leaves its project out of this
+        # run's results. It must not stop the status or the issue.
+        continue-on-error: true
+        with:
+          pattern: results-*
+          path: results
+
+      - name: Publish the fleet status
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          LATEST: ${{ needs.plan.outputs.latest }}
+          NIGHTLY_JSON: ${{ needs.plan.outputs.nightly_json }}
+          CANARY_RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          # fleet:publish refreshes in-process on every attempt (R27), so the
+          # results files are plain arguments. A gated tick has none.
+          if [ -d results ]; then
+            mapfile -t files < <(find results -name results.json | sort)
+          else
+            files=()
+          fi
+          jolt fleet:publish "$RUNNER_TEMP/status-out" "${files[@]}"
+
   report:
     needs: [plan, fleet]
-    if: always() && needs.plan.outputs.proceed == 'true'
+    # !cancelled() and not always(): a cancelled run must not open an issue.
+    if: ${{ !cancelled() && needs.plan.outputs.proceed == 'true' }}
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v7
+
+      - uses: jlt-commons/setup-jolt@v1
+        with:
+          version: ${{ env.TOOLS_JOLT_VERSION }}
+
+      - uses: actions/cache@v6.1.0
+        with:
+          path: ~/.jolt/gitlibs
+          key: jolt-gitlibs-${{ hashFiles('deps.edn') }}
+
+      # jolt.yaml loads libyaml, which the runner image carries today. Say so
+      # explicitly so an image change cannot break the tools silently.
+      - run: |
+          dpkg -s libyaml-0-2 >/dev/null 2>&1 || { sudo apt-get update && sudo apt-get install -y libyaml-0-2; }
+
       - name: Mint an installation token
         id: token
         uses: actions/create-github-app-token@v3
@@ -318,74 +278,32 @@ jobs:
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: jlt-commons
           repositories: ci-builds
+          # Opens, comments on and closes the canary issue, and reads this run's
+          # job names for the issue text.
+          permission-issues: write
+          permission-actions: read
 
+      # needs.fleet.outputs.failed holds one matrix leg's value, so the verdict
+      # is read from every leg's results file instead.
+      - uses: actions/download-artifact@v8
+        if: needs.fleet.result != 'skipped'
+        # An artifact that cannot be fetched leaves its project out of this
+        # run's results. It must not stop the status or the issue.
+        continue-on-error: true
+        with:
+          pattern: results-*
+          path: results
+
+      # Opens, comments on or closes the single "canary: jolt breaks the
+      # fleet" issue. The rules are in src/fleet/canary.clj.
       - name: Open, update or close the canary issue
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
           RESULT: ${{ needs.fleet.result }}
-          FAILED: ${{ needs.fleet.outputs.failed }}
-          INFRA: ${{ needs.fleet.outputs.infra }}
           VERSIONS: ${{ needs.plan.outputs.versions }}
           NIGHTLY: ${{ needs.plan.outputs.nightly }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          set -euo pipefail
-          TITLE="canary: jolt breaks the fleet"
-          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
-                      --search "$TITLE in:title" --limit 1 \
-                      --json number --jq '.[0].number // ""')
-
-          if [ "$RESULT" = "success" ]; then
-            if [ -n "$existing" ]; then
-              gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" \
-                --body "Recovered. The fleet builds against ${VERSIONS}. ${NIGHTLY}. [Run](${RUN_URL})"
-              gh issue close "$existing" --repo "$GITHUB_REPOSITORY"
-              echo "closed #$existing"
-            else
-              echo "green against ${VERSIONS}, nothing to report"
-            fi
-            exit 0
-          fi
-
-          # Which matrix legs failed. The job names carry the version, so the
-          # issue can name it rather than making a reader open the run.
-          broke=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs" \
-                   --jq '[.jobs[] | select(.conclusion=="failure") | .name] | join(", ")' 2>/dev/null || echo "")
-
-          # A failure that is really our own misconfiguration should not be
-          # filed as a fact about jolt. fanout reports those separately.
-          if [ -n "${INFRA:-}" ] && [ -z "${FAILED:-}" ]; then
-            body=$(printf '%s\n' \
-              "jolt could not be INSTALLED for: ${INFRA}" \
-              "" \
-              "This is not a finding about jolt. The fleet asked for a version it" \
-              "could not fetch, which usually means a project's \`JOLT_REPO\` points" \
-              "at a repository that does not publish it. It should be unset unless" \
-              "deliberately aimed at a fork." \
-              "" \
-              "**Versions tested:** ${VERSIONS}" \
-              "" \
-              "[Run](${RUN_URL}) has the per-project table.")
-          else
-          body=$(printf '%s\n' \
-            "The fleet does not build against every jolt version it is meant to." \
-              "" \
-              "**Versions tested:** ${VERSIONS}" \
-              "**Failing:** ${broke:-see the run}" \
-              "**Nightly:** ${NIGHTLY:-not resolved}" \
-              "" \
-              "[Run](${RUN_URL}) has a per-project table for each version." \
-              "" \
-              "This issue closes itself once a later canary passes. Reproduce one" \
-              "project by dispatching its own ci.yml with the \`jolt-version\` input.")
-          fi
-
-          if [ -n "$existing" ]; then
-            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"
-            echo "commented on #$existing"
-          else
-            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body "$body"
-          fi
+        run: jolt fleet:report results
 
   remember:
     # Only a green run is worth remembering. Saving on failure would mark a
@@ -399,3 +317,20 @@ jobs:
         with:
           path: .canary-state
           key: ${{ needs.plan.outputs.key }}
+
+  # Retry backoff (R35). A fleet result that is not success marks this version
+  # set as tried for the current window, so the next ticks skip it instead of
+  # dispatching every project every 15 minutes. Same dummy-file trick as
+  # `remember`: the cache action needs a path that exists. !cancelled() so a
+  # failed fleet job does not skip this job, while a cancelled workflow still
+  # does.
+  remember-tried:
+    needs: [plan, fleet]
+    if: ${{ !cancelled() && needs.plan.outputs.proceed == 'true' && needs.fleet.result != 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: mkdir -p .canary-state && date -u +%FT%TZ > .canary-state/tried-at
+      - uses: actions/cache/save@v6.1.0
+        with:
+          path: .canary-state
+          key: ${{ needs.plan.outputs.tried_key }}

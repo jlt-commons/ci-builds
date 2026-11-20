@@ -8,21 +8,22 @@ name: fan-out
 # how to build it (raygui needs raylib natives, glitter-uikit needs AppKit and
 # GTK4, glitter-gl needs a GL context under Xvfb, raylib-ios runs its pure
 # scenes under jolt on Linux because its real target is a phone), and every one
-# of them
-# accepts a `jolt-version` dispatch input that overrides its pinned
+# of them accepts a `jolt-version` dispatch input that overrides its pinned
 # JOLT_VERSION for a single run. So this workflow dispatches those and collects
-# the answers. Reimplementing five build environments here would rot, and would
-# test something other than what a contributor actually hits.
+# the answers. Reimplementing every project's build environment here would
+# rot, and would test something other than what a contributor actually hits.
 #
 # Auth is the jlt-commons-ci GitHub App rather than a PAT, so a run is
 # attributed to the App and not to whoever pressed the button, and the token it
-# mints lives for an hour and reaches exactly seven repositories.
+# mints lives for an hour and reaches only the repositories the App is
+# installed on.
 #
-# Why this exists: jolt v0.8.0 published 2026-09-01 and reversed
-# jolt.ffi/write's last two arguments (jolt-lang/jolt#802). Both spellings are
-# plain integers, so a mismatch writes to the wrong address and reports
-# nothing. Finding that out one repository at a time, days apart, is the thing
-# this workflow is meant to replace.
+# Why this exists: a jolt release can change an API without any error. v0.8.0
+# reversed jolt.ffi/write's last two arguments (jolt-lang/jolt#802), and both
+# spellings are plain integers, so a mismatch writes to the wrong address and
+# reports nothing. One run over the whole fleet shows that on the day it
+# happens, not one repository at a time days later. The loop and its rules are
+# in src/fleet/fanout.clj.
 # ---------------------------------------------------------------------------
 
 on:
@@ -43,7 +44,7 @@ on:
         description: "Space-separated projects that did not pass"
         value: ${{ jobs.fanout.outputs.failed }}
       infra:
-        description: "Space-separated projects whose jolt could not be installed at all"
+        description: "Space-separated projects whose failure is not about jolt (install, dependency download, unreadable logs)"
         value: ${{ jobs.fanout.outputs.infra }}
       version:
         description: "The jolt version actually tested"
@@ -52,18 +53,51 @@ on:
 permissions:
   contents: read
 
+env:
+  TOOLS_JOLT_VERSION: ${{ vars.TOOLS_JOLT_VERSION || '0.8.27' }}
+
 jobs:
   fanout:
     name: fan-out
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    # A manual fan-out queues behind a running canary instead of racing it: two
+    # dispatches of one project's ci.yml at once cancel each other when its
+    # own concurrency group cancels in progress (R37). It joins the canary's
+    # group only when run on its own. Called by the canary (github.workflow is
+    # then `canary`), the caller already holds that group, so the job takes a
+    # group of its own, which is unique per run and never waits.
+    concurrency:
+      group: ${{ github.workflow == 'fan-out' && 'canary' || format('fanout-called-{0}', github.run_id) }}
+      cancel-in-progress: false
     outputs:
       failed: ${{ steps.run.outputs.failed }}
       infra: ${{ steps.run.outputs.infra }}
-      version: ${{ steps.version.outputs.version }}
+      version: ${{ steps.run.outputs.version }}
 
     steps:
-      # Mints a token scoped to the App's seven repositories, valid one hour.
+      # fleet.json (the project list) and src/fleet live here.
+      # Under workflow_call this checks out the caller's ref of this same repo.
+      - uses: actions/checkout@v7
+
+      # The tool jolt runs the fan-out loop. Pinned, and never the jolt under
+      # test: a release published overnight must not change the tool.
+      - uses: jlt-commons/setup-jolt@v1
+        with:
+          version: ${{ env.TOOLS_JOLT_VERSION }}
+
+      - uses: actions/cache@v6.1.0
+        with:
+          path: ~/.jolt/gitlibs
+          key: jolt-gitlibs-${{ hashFiles('deps.edn') }}
+
+      # jolt.yaml loads libyaml, which the runner image carries today. Say so
+      # explicitly so an image change cannot break the tools silently.
+      - run: |
+          dpkg -s libyaml-0-2 >/dev/null 2>&1 || { sudo apt-get update && sudo apt-get install -y libyaml-0-2; }
+
+      # Mints a token scoped to the repositories the App is installed on, valid
+      # one hour.
       # Never a PAT: a PAT would act as whoever created it, and any collaborator
       # able to run this workflow would be borrowing that identity.
       - name: Mint an installation token
@@ -74,195 +108,81 @@ jobs:
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: jlt-commons
 
-      - name: Resolve the jolt version
-        id: version
-        env:
-          REQUESTED: ${{ inputs.jolt-version }}
-          GH_TOKEN: ${{ steps.token.outputs.token }}
-        run: |
-          set -euo pipefail
-          if [ -n "$REQUESTED" ]; then
-            version="$REQUESTED"
-            echo "Using the requested jolt $version"
-          else
-            # The App cannot read jolt-lang (a different org), but the release
-            # list is public, so an unauthenticated read is both sufficient and
-            # correct here.
-            version="$(curl -fsSL https://api.github.com/repos/jolt-lang/jolt/releases/latest \
-                       | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -1)"
-            version="${version#v}"
-            [ -n "$version" ] || { echo "could not resolve jolt's latest release" >&2; exit 1; }
-            echo "Using jolt's latest release, $version"
-          fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-
       - name: Dispatch every project and wait
         id: run
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ inputs.jolt-version }}
+        # The loop lives in src/fleet/fanout.clj, which says why each rule
+        # exists. A blank VERSION means jolt's latest release.
+        run: jolt fleet:fanout "$VERSION"
+
+      - name: Upload results.json
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.run.outputs.artifact || format('results-{0}', steps.run.outputs.version) }}
+          path: ${{ steps.run.outputs.results_dir }}/results.json
+          if-no-files-found: warn
+
+  # An ad-hoc (workflow_dispatch) fan-out publishes its own result to the status
+  # page's history. Under workflow_call github.workflow is the CALLER's name, so
+  # this skips under canary, whose own `status` job publishes instead. It adds
+  # to history only: --nightly-json null keeps the grid's nightly cells as they
+  # were.
+  publish-adhoc:
+    needs: fanout
+    if: always() && github.workflow == 'fan-out'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: jlt-commons/setup-jolt@v1
+        with:
+          version: ${{ env.TOOLS_JOLT_VERSION }}
+
+      - uses: actions/cache@v6.1.0
+        with:
+          path: ~/.jolt/gitlibs
+          key: jolt-gitlibs-${{ hashFiles('deps.edn') }}
+
+      - run: |
+          dpkg -s libyaml-0-2 >/dev/null 2>&1 || { sudo apt-get update && sudo apt-get install -y libyaml-0-2; }
+
+      - name: Mint an installation token
+        id: token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ secrets.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: jlt-commons
+          # Cross-repo reads only: each project's ci.yml, runs and jobs.
+          permission-contents: read
+          permission-actions: read
+
+      - uses: actions/download-artifact@v8
+        # An artifact that cannot be fetched leaves its project out of the
+        # results. It must not stop the publish.
+        continue-on-error: true
+        with:
+          pattern: results-*
+          path: results
+
+      - name: Publish the fleet status
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          NIGHTLY_JSON: "null"
+          CANARY_RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          set -uo pipefail
-          PROJECTS="glitter glitter-gl glitter-uikit raygui-jlt raylib-jlt raylib-ios raylib-android"
-          declare -A RUN CONC URL
-          # A plain string, not an associative array: `${#arr[@]}` and
-          # `${!arr[@]}` on an EMPTY associative array are only safe under
-          # `set -u` from bash 4.4, and the empty case is the normal one here.
-          # A string list behaves the same on every bash and is testable locally.
-          NEEDID=""
-
-          # `gh workflow run` prints the URL of the run it created, so READ THAT
-          # rather than guessing. The guess this replaced was "the newest
-          # workflow_dispatch run above a baseline recorded before dispatching",
-          # which is a positive control: it always returns a plausible id, and
-          # nothing in the output describes the gap between that id and the run
-          # you meant.
-          #
-          # It was not merely theoretical. Canary run 33682325150 ran two fan-out
-          # legs at once, 0.8.0 and 0.8.1, and BOTH claimed glitter run
-          # 33682354193. gh had printed 33682349678 to the 0.8.1 leg and
-          # 33682354193 to the 0.8.0 leg, and gh was right both times:
-          # ...9678 installed v0.8.1 and ...4193 installed v0.8.0. So the 0.8.1
-          # row reported a result for a build of 0.8.0. Both were green, which is
-          # the only reason the wrong answer was harmless that day.
-          #
-          # Reading gh's own output removes the guess instead of narrowing it, and
-          # it holds however many fan-outs run at once: a manual dispatch during
-          # the nightly canary, three matrix legs, anything.
-          echo "::group::dispatch jolt $VERSION"
-          for p in $PROJECTS; do
-            if out=$(gh workflow run ci.yml --repo "jlt-commons/$p" -f jolt-version="$VERSION" 2>&1); then
-              printf '%s\n' "$out" | sed 's/^/    /'
-              id=$(printf '%s' "$out" | sed -n 's#.*/actions/runs/\([0-9][0-9]*\).*#\1#p' | head -1)
-              if [ -n "$id" ]; then
-                RUN[$p]=$id
-                URL[$p]="https://github.com/jlt-commons/$p/actions/runs/$id"
-                echo "  dispatched $p -> run $id"
-              else
-                # An older gh prints no URL. Rather than silently fall back to the
-                # heuristic this replaced, say so: the result is still produced,
-                # and a human is told the attribution is a guess.
-                NEEDID="$NEEDID $p"
-                echo "::warning::gh printed no run URL for $p, falling back to newest-run matching. That is unreliable when fan-outs overlap."
-                echo "  dispatched $p, run id unknown"
-              fi
-            else
-              echo "  FAILED to dispatch $p"
-              CONC[$p]="dispatch-failed"
-            fi
-          done
-          echo "::endgroup::"
-
-          # Only for projects whose id gh did not give us.
-          if [ -n "$NEEDID" ]; then
-            echo "::group::identify runs (fallback)"
-            sleep 10
-            for _ in $(seq 1 40); do
-              waiting=0
-              for p in $NEEDID; do
-                [ -n "${RUN[$p]:-}" ] && continue
-                [ -n "${CONC[$p]:-}" ] && continue
-                id=$(gh run list --repo "jlt-commons/$p" --workflow ci.yml \
-                      --event workflow_dispatch --limit 1 \
-                      --json databaseId --jq '.[0].databaseId // 0' 2>/dev/null || echo 0)
-                if [ "$id" != "0" ]; then
-                  RUN[$p]=$id
-                  URL[$p]="https://github.com/jlt-commons/$p/actions/runs/$id"
-                  echo "  $p -> run $id (guessed)"
-                else
-                  waiting=1
-                fi
-              done
-              [ "$waiting" = "0" ] && break
-              sleep 5
-            done
-            for p in $NEEDID; do
-              if [ -z "${RUN[$p]:-}" ] && [ -z "${CONC[$p]:-}" ]; then
-                CONC[$p]="no-run-appeared"
-                echo "  $p: no run appeared within the window"
-              fi
-            done
-            echo "::endgroup::"
+          set -euo pipefail
+          # fleet:publish refreshes in-process on every attempt (R27), so the
+          # results files are plain arguments.
+          if [ -d results ]; then
+            mapfile -t files < <(find results -name results.json | sort)
+          else
+            files=()
           fi
-
-          echo "::group::wait for completion"
-          for _ in $(seq 1 150); do
-            waiting=0
-            for p in $PROJECTS; do
-              [ -n "${CONC[$p]:-}" ] && continue
-              read -r st cc < <(gh run view "${RUN[$p]}" --repo "jlt-commons/$p" \
-                                 --json status,conclusion \
-                                 --jq '"\(.status) \(.conclusion // "-")"' 2>/dev/null || echo "unknown -")
-              if [ "$st" = "completed" ]; then
-                # "jolt broke this project" and "we could not install jolt" both
-                # arrive as a failed run naming a project, and they call for
-                # opposite responses: one is a finding about jolt, the other is
-                # this fleet's own misconfiguration. Measured 2026-09-02:
-                # JOLT_REPO was left pointing at a fork that publishes only
-                # nightlies, so asking for 0.8.0 and 0.8.1 gave curl 404 and two
-                # scheduled canaries reported the fleet broken when it was fine.
-                if [ "$cc" = "failure" ] && gh api \
-                     "repos/jlt-commons/$p/actions/runs/${RUN[$p]}/jobs" \
-                     --jq '.jobs[].steps[]? | select(.conclusion=="failure") | .name' \
-                     2>/dev/null | grep -qi 'install jolt'; then
-                  cc="toolchain-unavailable"
-                fi
-                CONC[$p]="$cc"
-                echo "  $p: $cc"
-              else
-                waiting=1
-              fi
-            done
-            [ "$waiting" = "0" ] && break
-            sleep 20
-          done
-          for p in $PROJECTS; do
-            [ -z "${CONC[$p]:-}" ] && CONC[$p]="timed-out"
-          done
-          echo "::endgroup::"
-
-          # Render the table this workflow exists to produce.
-          failed=""
-          infra=""
-          {
-            echo "## jolt \`$VERSION\` across jlt-commons"
-            echo
-            echo "| project | result | run |"
-            echo "|---|---|---|"
-          } >> "$GITHUB_STEP_SUMMARY"
-          for p in $PROJECTS; do
-            c="${CONC[$p]}"
-            case "$c" in
-              success)   icon="pass" ;;
-              skipped)   icon="skipped" ;;
-              toolchain-unavailable)
-                         icon="**could not install jolt**"; infra="$infra $p" ;;
-              *)         icon="**FAIL** ($c)"; failed="$failed $p" ;;
-            esac
-            link="-"
-            [ -n "${URL[$p]:-}" ] && link="[run](${URL[$p]})"
-            echo "| \`$p\` | $icon | $link |" >> "$GITHUB_STEP_SUMMARY"
-          done
-          failed="${failed# }"
-          infra="${infra# }"
-          {
-            echo
-            [ -n "$failed" ] && echo "**Broken by jolt \`$VERSION\`:** $failed"
-            if [ -n "$infra" ]; then
-              echo "**Could not install jolt \`$VERSION\` for:** $infra"
-              echo
-              echo "That is this fleet's own problem, not a fact about jolt. Usually"
-              echo "the version does not exist in the repository being installed"
-              echo "from: check each project's \`JOLT_REPO\`, which should be unset"
-              echo "unless deliberately pointed at a fork."
-            fi
-            # Counted from PROJECTS rather than written out. The literal said five
-            # for as long as there were five, then went on saying it after there
-            # were six, which is what a count kept by hand beside the list it
-            # counts always does eventually.
-            [ -z "$failed$infra" ] && echo "All $(set -- $PROJECTS; echo $#) projects build against jolt \`$VERSION\`."
-          } >> "$GITHUB_STEP_SUMMARY"
-
-          echo "failed=$failed" >> "$GITHUB_OUTPUT"
-          echo "infra=$infra" >> "$GITHUB_OUTPUT"
-          [ -z "$failed$infra" ] || { echo "failing: ${failed:-none}  infra: ${infra:-none}" >&2; exit 1; }
+          jolt fleet:publish "$RUNNER_TEMP/status-out" "${files[@]}"

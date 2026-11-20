@@ -1,0 +1,7 @@
+name: ci
+"on":
+  workflow_dispatch:
+    inputs:
+      other:
+        type: string
+jobs: {}

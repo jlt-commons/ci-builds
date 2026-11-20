@@ -1,0 +1,5 @@
+{"requested":"nightly","nightly_sha":"f4e82fc8eac874cae1658b7976518253027c4f6a","finished_at":"2026-11-20T01:59:57Z","run_url":"https://github.com/jlt-commons/ci-builds/actions/runs/20",
+ "projects":[
+  {"name":"glitter","result":"pass","installed":"0.8.27-376-gf4e82fc8","run_url":"https://github.com/jlt-commons/glitter/actions/runs/21","finished_at":"2026-11-20T01:53:34Z","failed_step":null},
+  {"name":"raygui-jlt","result":"mismatch","installed":"0.8.27-300-gabcdef01","run_url":"https://github.com/jlt-commons/raygui-jlt/actions/runs/22","finished_at":"2026-11-20T01:55:47Z","failed_step":null}
+ ]}

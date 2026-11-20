@@ -1,0 +1,273 @@
+(ns fleet.status-test
+  (:require [cheshire.core :as json]
+            [clojure.test :refer [deftest is testing]]
+            [fleet.status :as status]))
+
+(defn- fx
+  "Parse a status fixture. cheshire under jolt returns arrays as lazy seqs, so
+  a top-level array is made a vector for assoc-in."
+  [name]
+  (let [d (json/parse-string (slurp (str "test/fixtures/status/" name)) true)]
+    (if (sequential? d) (vec d) d)))
+
+(def ^:private nj
+  {:published_at "2026-11-20T01:00:00Z"
+   :sha          "f4e82fc8eac874cae1658b7976518253027c4f6a"
+   :note         "n"})
+
+(def ^:private nj-aaaa {:published_at "x" :sha "aaaa1111" :note "n"})
+
+(defn- run-bs
+  "build with the default inputs. Opts override: :ps :ph :op :latest :nj
+  (use ::none for a nil nightly)."
+  [{:keys [ps ph op latest nightly] :or {latest "0.8.27" nightly nj}} & results]
+  (status/build {:prev-status  ps
+                 :prev-history ph
+                 :own-pin      (or op (fx "own-pin.json"))
+                 :uncovered    (fx "uncovered.json")
+                 :latest       latest
+                 :nightly      (when-not (= ::none nightly) nightly)
+                 :canary-run   "https://example/run/1"
+                 :now          "2026-11-20T04:00:00Z"
+                 :results      results}))
+
+(defn- cells [out name col]
+  (->> (get-in out [:status :projects]) (filter #(= name (:name %))) first :cells col))
+
+(defn- hist [out name col] (get-in out [:history :projects (keyword name) col]))
+
+(defn- names [out] (mapv :name (get-in out [:status :projects])))
+
+(defn- prev-cell [name col]
+  (->> (:projects (fx "prev-status.json")) (filter #(= name (:name %))) first :cells col))
+
+(def ^:private prev-s (fx "prev-status.json"))
+(def ^:private prev-h (fx "prev-history.json"))
+(def ^:private not-run {:result "not-run"})
+
+(deftest first-run-with-no-prev-files
+  (let [out (run-bs {} (fx "results-latest.json"))]
+    (is (= 1 (get-in out [:status :schema])))
+    (is (= ["ebb" "glitter" "raygui-jlt"] (sort (names out))))
+    (is (= not-run (cells out "raygui-jlt" :latest)))
+    (is (= not-run (cells out "raygui-jlt" :nightly)))
+    (is (= [{:name "duratom" :reason "ci.yml has no jolt-version input"}]
+           (get-in out [:status :uncovered])))
+    (is (= "2026-11-20T04:00:00Z" (get-in out [:status :generated_at])))
+    (is (= 1 (get-in out [:history :schema])))
+    (is (= 1 (count (hist out "glitter" :latest))))
+    (is (= 1 (count (hist out "ebb" :latest))))
+    (is (= 1 (count (hist out "glitter" :pin))))))
+
+(deftest pin-cell-comes-from-own-pin-with-installed-null
+  (let [c (cells (run-bs {}) "glitter" :pin)]
+    (is (= ["pass" "0.8.24" nil] ((juxt :result :version :installed) c)))
+    (is (contains? c :installed))))
+
+(deftest latest-result-lands-in-latest-column
+  (let [out (run-bs {} (fx "results-latest.json"))]
+    (is (= ["pass" "0.8.27" "0.8.27"]
+           ((juxt :result :version :installed) (cells out "glitter" :latest))))
+    (is (= {:version "0.8.27"} (get-in out [:status :jolt :latest])))))
+
+(deftest v-prefix-on-requested-is-stripped
+  (let [out (run-bs {} (assoc (fx "results-latest.json") :requested "v0.8.27"))]
+    (is (= "0.8.27" (:version (cells out "glitter" :latest))))))
+
+(deftest nightly-result-lands-in-nightly-column
+  (let [out (run-bs {} (fx "results-nightly.json"))]
+    (is (= ["pass" "nightly" "0.8.27-376-gf4e82fc8"]
+           ((juxt :result :version :installed) (cells out "glitter" :nightly))))
+    (is (= "f4e82fc8eac874cae1658b7976518253027c4f6a" (get-in out [:status :jolt :nightly :sha])))))
+
+(deftest adhoc-result-only-in-history
+  (let [out (run-bs {:ps prev-s :ph prev-h} (fx "results-adhoc.json"))]
+    (is (= "https://github.com/jlt-commons/glitter/actions/runs/42"
+           (:run_url (cells out "glitter" :latest))))
+    (is (= 1 (count (hist out "glitter" :adhoc))))
+    (is (= "0.8.25" (:version (first (hist out "glitter" :adhoc)))))
+    (is (= 0 (count (hist out "glitter" :latest))))))
+
+(deftest results-for-a-project-outside-own-pin-go-to-history-not-the-grid
+  (let [r   (assoc-in (fx "results-latest.json") [:projects 0 :name] "gone")
+        out (run-bs {} r)]
+    (is (nil? (some #{"gone"} (names out))))
+    (is (= 1 (count (hist out "gone" :latest))))))
+
+(deftest carry-over-with-only-own-pin-input
+  (let [out (run-bs {:nightly nj-aaaa :ps prev-s :ph prev-h})]
+    (is (= (prev-cell "ebb" :latest) (cells out "ebb" :latest)))
+    (is (= (prev-cell "glitter" :nightly) (cells out "glitter" :nightly)))
+    (is (= not-run (cells out "raygui-jlt" :latest)))))
+
+(deftest new-latest-version-invalidates-carried-latest-cells
+  (let [out (run-bs {:nightly nj-aaaa :ps prev-s :ph prev-h :latest "0.8.28"})]
+    (is (= not-run (cells out "ebb" :latest)))
+    (is (= not-run (cells out "glitter" :latest)))
+    (is (= "pass" (:result (cells out "glitter" :nightly))))))
+
+(deftest new-nightly-sha-invalidates-carried-nightly-cells
+  (let [out (run-bs {:ps prev-s :ph prev-h})]
+    (is (= "not-run" (:result (cells out "glitter" :nightly))))
+    (is (= "pass" (:result (cells out "glitter" :latest))))))
+
+(deftest null-nightly-json-with-no-previous-status-gives-null-jolt-nightly
+  (let [out (run-bs {:nightly ::none})]
+    (is (contains? (get-in out [:status :jolt]) :nightly))
+    (is (nil? (get-in out [:status :jolt :nightly])))))
+
+(deftest same-nightly-sha-keeps-carried-nightly-cells
+  (let [out (run-bs {:nightly nj-aaaa :ps prev-s})]
+    (is (= "pass" (:result (cells out "glitter" :nightly))))))
+
+(deftest null-nightly-json-keeps-previous-nightly-cells-and-previous-jolt-nightly
+  (let [out (run-bs {:nightly ::none :ps prev-s})]
+    (is (= (get-in prev-s [:jolt :nightly]) (get-in out [:status :jolt :nightly])))
+    (is (= "pass" (:result (cells out "glitter" :nightly))))))
+
+(deftest pin-history-appended-only-when-run-url-is-new
+  (let [out (run-bs {:ps prev-s :ph prev-h})]
+    (is (= 1 (count (hist out "glitter" :pin))))
+    (is (= 1 (count (hist out "ebb" :pin))))
+    (let [out2 (run-bs {:ps (:status out) :ph (:history out)})]
+      (is (= 1 (count (hist out2 "ebb" :pin))))
+      (is (= 1 (count (hist out2 "raygui-jlt" :pin)))))))
+
+(deftest pin-history-grows-when-the-pin-run-changes
+  (let [out (run-bs {:ps prev-s :ph prev-h})
+        op  (assoc-in (fx "own-pin.json") [0 :run_url]
+                      "https://github.com/jlt-commons/glitter/actions/runs/99")
+        out2 (run-bs {:op op :ph (:history out)})]
+    (is (= 2 (count (hist out2 "glitter" :pin))))
+    (is (= "https://github.com/jlt-commons/glitter/actions/runs/99"
+           (:run_url (first (hist out2 "glitter" :pin)))))))
+
+(deftest history-capped-at-30-newest-first
+  (let [old (vec (for [i (range 30)]
+                   {:result "pass" :version "0.8.26" :installed nil
+                    :run_url (str "old/" i) :finished_at nil :failed_step nil}))
+        ph  (assoc-in prev-h [:projects :glitter :latest] old)
+        out (run-bs {:ph ph} (fx "results-latest.json"))
+        l   (hist out "glitter" :latest)]
+    (is (= 30 (count l)))
+    (is (= "https://github.com/jlt-commons/glitter/actions/runs/11" (:run_url (first l))))
+    (is (= "old/28" (:run_url (nth l 29))))))
+
+(deftest failing-first-then-by-name
+  (is (= ["raygui-jlt" "ebb" "glitter"] (names (run-bs {})))))
+
+(deftest mismatch-cell-sorts-before-passing-ones
+  (let [op (assoc-in (fx "own-pin.json") [2 :result] "pass")]
+    (is (= ["raygui-jlt" "ebb" "glitter"] (names (run-bs {:op op} (fx "results-nightly.json")))))))
+
+(deftest malformed-results-throw
+  (is (thrown? Exception
+               (run-bs {} {:requested "0.8.27" :projects "nope"}))))
+
+(deftest unknown-result-value-is-rejected
+  (is (thrown? Exception
+               (run-bs {} (assoc-in (fx "results-latest.json") [:projects 0 :result] "weird")))))
+
+;; An unparseable results file is the file-reading edge. Here it is the
+;; shape a failed parse gives the pure function: not a map.
+(deftest unparseable-results-input-is-rejected
+  (is (thrown? Exception (run-bs {} nil)))
+  (is (thrown? Exception (run-bs {} "{not json"))))
+
+(deftest latest-with-a-v-prefix-matches-results-and-prev
+  (let [out (run-bs {:nightly nj-aaaa :ps prev-s :latest "v0.8.27"} (fx "results-latest.json"))]
+    (is (= "0.8.27" (get-in out [:status :jolt :latest :version])))
+    (is (= "https://github.com/jlt-commons/glitter/actions/runs/11"
+           (:run_url (cells out "glitter" :latest))))
+    (is (= "not-run" (:result (cells out "raygui-jlt" :latest)))))
+  (let [out (run-bs {:nightly nj-aaaa :ps prev-s :latest "v0.8.27"})]
+    (is (= "fail" (:result (cells out "ebb" :latest))))))
+
+(deftest reprocessing-the-same-results-does-not-duplicate-history
+  (let [rs  [(fx "results-latest.json") (fx "results-nightly.json") (fx "results-adhoc.json")]
+        o1  (apply run-bs {} rs)
+        o2  (apply run-bs {:ps (:status o1) :ph (:history o1)} rs)]
+    (is (= (:history o1) (:history o2)))
+    (is (= 1 (count (hist o2 "glitter" :adhoc))))
+    (is (= 1 (count (hist o2 "glitter" :latest))))
+    (is (= 1 (count (hist o2 "glitter" :nightly))))))
+
+(deftest unchanged-ignores-generated-at-and-canary-run
+  (let [s (:status (run-bs {}))]
+    (is (true? (status/unchanged? s (assoc s :generated_at "2026-11-20T05:00:00Z"
+                                           :canary_run "https://example/run/2"))))
+    (is (false? (status/unchanged? s (assoc-in s [:jolt :latest :version] "0.8.28"))))
+    (is (false? (status/unchanged? s (assoc s :uncovered []))))))
+
+(deftest r39-heartbeat-both-sides-of-6h
+  ;; run-bs generates at 2026-11-20T04:00:00Z
+  (let [s (:status (run-bs {}))
+        at (fn [t] (assoc s :generated_at t))]
+    (is (true? (status/unchanged? s (at "2026-11-20T09:59:59Z"))))
+    (is (false? (status/unchanged? s (at "2026-11-20T10:00:00Z"))))
+    (is (false? (status/unchanged? s (at "2026-11-21T04:00:00Z"))))
+    (testing "an unparseable timestamp publishes"
+      (is (false? (status/unchanged? (assoc s :generated_at "soon") s))))))
+
+(defn- own-row [pin result url & {:as more}]
+  (merge {:name "glitter" :pin pin :result result :run_url url :finished_at nil :failed_step nil} more))
+
+(defn- seq-build
+  "Feed builds one after another, each from the previous output. rows: one
+  own-pin row vector per build."
+  [rows]
+  (reduce (fn [{:keys [status history]} op]
+            (status/build {:prev-status status :prev-history history :own-pin op
+                           :uncovered [] :latest "0.8.27" :nightly nil
+                           :canary-run "r" :now "2026-11-20T04:00:00Z" :results []}))
+          {} rows))
+
+(deftest r38-outage-recovery-keeps-the-pin-cell-and-adds-no-bogus-history
+  (let [pass1 (own-row "0.8.24" "pass" "https://r/1")
+        outage (own-row nil "not-run" nil :unreadable true)
+        pass2 (own-row "0.8.24" "pass" "https://r/2")
+        step (fn [rows] (let [o (seq-build rows)]
+                          {:cell (get-in o [:status :projects 0 :cells :pin])
+                           :pin  (get-in o [:status :projects 0 :pin])
+                           :hist (mapv :result (get-in o [:history :projects :glitter :pin]))
+                           :urls (mapv :run_url (get-in o [:history :projects :glitter :pin]))}))
+        after-outage (step [[pass1] [outage]])]
+    (testing "during the outage the previous pin cell and pin stay"
+      (is (= "pass" (:result (:cell after-outage))))
+      (is (= "https://r/1" (:run_url (:cell after-outage))))
+      (is (= "0.8.24" (:pin after-outage)))
+      (is (= ["https://r/1"] (:urls after-outage))))
+    (testing "pass, outage, pass, pass: history is the two passes only"
+      (let [o (step [[pass1] [outage] [pass2] [pass2]])]
+        (is (= ["https://r/2" "https://r/1"] (:urls o)))
+        (is (= ["pass" "pass"] (:hist o)))
+        (is (= "https://r/2" (:run_url (:cell o))))))
+    (testing "an outage on the very first build has nothing to carry and no history"
+      (let [o (step [[outage]])]
+        (is (= [] (:hist o)))))))
+
+(deftest r38-an-unreadable-uncovered-row-keeps-its-previous-reason
+  (let [prev (assoc (:status (run-bs {})) :uncovered [{:name "duratom" :reason "ci.yml has no jolt-version input"}
+                                                      {:name "other" :reason "ready, not yet in fleet.json"}])
+        out  (status/build {:prev-status prev :prev-history nil :own-pin (fx "own-pin.json")
+                            :uncovered [{:name "duratom" :reason "could not read repository" :unreadable true}
+                                        {:name "other" :reason "ready, not yet in fleet.json"}
+                                        {:name "newrepo" :reason "could not read repository" :unreadable true}]
+                            :latest "0.8.27" :nightly nil :canary-run "r" :now "2026-11-20T04:00:00Z" :results []})]
+    (is (= [{:name "duratom" :reason "ci.yml has no jolt-version input"}
+            {:name "other" :reason "ready, not yet in fleet.json"}
+            {:name "newrepo" :reason "could not read repository"}]
+           (get-in out [:status :uncovered])))))
+
+(deftest nil-pin-is-accepted-and-the-project-still-appears
+  ;; R26: a project with a non-literal JOLT_VERSION has pin nil. It must not
+  ;; stop the whole dashboard from updating.
+  (let [op  (-> (fx "own-pin.json")
+                (assoc-in [0 :pin] nil)
+                (assoc-in [0 :result] "fail"))
+        out (run-bs {:op op})
+        p   (first (filter #(= "glitter" (:name %)) (:projects (:status out))))]
+    (is (= ["ebb" "glitter" "raygui-jlt"] (sort (map :name (:projects (:status out))))))
+    (is (nil? (:version (:pin (:cells p)))))
+    (is (= "fail" (:result (:pin (:cells p)))))
+    (is (nil? (:installed (:pin (:cells p)))))))
