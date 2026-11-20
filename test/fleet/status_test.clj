@@ -198,3 +198,16 @@
                                            :canary_run "https://example/run/2"))))
     (is (false? (status/unchanged? s (assoc-in s [:jolt :latest :version] "0.8.28"))))
     (is (false? (status/unchanged? s (assoc s :uncovered []))))))
+
+(deftest nil-pin-is-accepted-and-the-project-still-appears
+  ;; R26: a project with a non-literal JOLT_VERSION has pin nil. It must not
+  ;; stop the whole dashboard from updating.
+  (let [op  (-> (fx "own-pin.json")
+                (assoc-in [0 :pin] nil)
+                (assoc-in [0 :result] "fail"))
+        out (run-bs {:op op})
+        p   (first (filter #(= "glitter" (:name %)) (:projects (:status out))))]
+    (is (= ["ebb" "glitter" "raygui-jlt"] (sort (map :name (:projects (:status out))))))
+    (is (nil? (:version (:pin (:cells p)))))
+    (is (= "fail" (:result (:pin (:cells p)))))
+    (is (nil? (:installed (:pin (:cells p)))))))

@@ -35,7 +35,7 @@
 (defn- validate!
   [{:keys [prev-status prev-history own-pin uncovered results]}]
   (when-not (and (sequential? own-pin)
-                 (every? #(and (string? (:name %)) (string? (:pin %))) own-pin))
+                 (every? #(and (string? (:name %)) (or (nil? (:pin %)) (string? (:pin %)))) own-pin))
     (fail! "malformed own-pin" {}))
   (when-not (sequential? uncovered) (fail! "malformed uncovered" {}))
   (when-not (or (nil? prev-status) (map? prev-status)) (fail! "malformed prev status" {}))
