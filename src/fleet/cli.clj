@@ -6,6 +6,7 @@
   (:require [cheshire.core :as json]
             [clojure.string :as str]
             [fleet.collect :as collect]
+            [fleet.fanout :as fanout]
             [fleet.github :as github]
             [fleet.publish :as publish]
             [fleet.refresh :as refresh]
@@ -165,3 +166,20 @@
                    (println (if (= :unchanged (:result res))
                               "status: unchanged"
                               (str "status: published (attempt " (:attempt res) ")")))))))))
+
+(defn fanout-main
+  "fleet:fanout [version]: dispatch every fleet project against a jolt
+  version and wait. A blank or missing version means jolt's latest release.
+  Exit 1 when anything failed or was infra. Env: GH_TOKEN, FLEET_JSON and
+  the GITHUB_* variables fan-out writes its outputs to. deps may carry
+  :gh, :sh, :sleep and :now fns."
+  ([args] (fanout-main args (into {} (System/getenv)) {}))
+  ([args env deps]
+   (if (> (count args) 1)
+     (usage-error "fanout [version]" nil)
+     (guarded "fanout"
+              #(fanout/run! (merge (select-keys deps [:sh :sleep :now])
+                                   {:version  (first args)
+                                    :projects (:projects (load-fleet env))
+                                    :gh       (gh-of deps)
+                                    :env      (fn [k] (get env k))}))))))

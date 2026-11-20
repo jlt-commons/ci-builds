@@ -71,13 +71,45 @@
       (throw (ex-info (str "GitHub API " status " for " path)
                       {:status status :path path :body (:body resp)})))))
 
+(defn- redirected-log!
+  "GET path with the token. GitHub answers a job-log request with a 302 to a
+  signed blob-storage URL. That URL is fetched WITHOUT the Authorization
+  header: the signature is the credential, and the token must not go to a
+  host we did not choose. A 2xx on the first request is returned as is. A
+  Location that is not https throws {:reason :bad-redirect}."
+  [{:keys [token request]} path]
+  (let [req  (or request default-request)
+        resp (req {:url              (url-for path)
+                   :throw-exceptions false
+                   :headers          (cond-> {"Accept"               "application/vnd.github+json"
+                                              "X-GitHub-Api-Version" "2022-11-28"}
+                                       (seq token) (assoc "Authorization" (str "Bearer " token)))})
+        status (:status resp)
+        loc    (header (:headers resp) "location")]
+    (cond
+      (and (integer? status) (<= 200 status 299)) (:body resp)
+
+      (and (contains? #{301 302 303 307 308} status) (seq loc))
+      (do (when-not (str/starts-with? loc "https://")
+            (throw (ex-info (str "refusing a non-https log redirect for " path)
+                            {:reason :bad-redirect :path path})))
+          (let [r2 (req {:url loc :throw-exceptions false :headers {}})
+                s2 (:status r2)]
+            (if (and (integer? s2) (<= 200 s2 299))
+              (:body r2)
+              (throw (ex-info (str "log host answered " s2 " for " path)
+                              {:status s2 :path path :body (:body r2)})))))
+
+      :else (throw (ex-info (str "GitHub API " status " for " path)
+                            {:status status :path path :body (:body resp)})))))
+
 (def ^:private json-accept "application/vnd.github+json")
 
 (defn- parse [body] (json/parse-string body true))
 
 (defn client
-  "A map of fns {:get-json :get-raw :get-paginated}, each taking a path
-  (\"repos/o/r\", \"/repos/o/r\" or a full URL). opts: :token, :request (a fn
+  "A map of fns {:get-json :get-raw :get-paginated :get-redirected-log}, each
+  taking a path (\"repos/o/r\", \"/repos/o/r\" or a full URL). opts: :token, :request (a fn
   from {:url :headers :throw-exceptions} to {:status :headers :body})."
   [opts]
   {:get-json      (fn [path] (parse (:body (request! opts path json-accept))))
@@ -89,7 +121,8 @@
                             acc  (if (sequential? body) (into acc body) (conj acc body))]
                         (if-let [nxt (next-link (header (:headers resp) "link"))]
                           (recur nxt acc)
-                          acc))))})
+                          acc))))
+   :get-redirected-log (fn [path] (redirected-log! opts path))})
 
 (defn env-client
   "A client with the token from GH_TOKEN (none when unset)."

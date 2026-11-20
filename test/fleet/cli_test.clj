@@ -121,3 +121,13 @@
             r (run #(cli/refresh-main [(str d "/out")] (assoc env "FLEET_JSON" (fleet d)) {:gh gh}))]
         (is (= 0 (:rc r)))
         (is (fs/exists? (str d "/out/status.json")))))))
+
+(deftest fanout-rejects-extra-arguments
+  (let [r (run #(cli/fanout-main ["0.8.27" "extra"] {} {}))]
+    (is (= 2 (:rc r)))
+    (is (str/includes? (:err r) "usage: fanout [version]"))))
+
+(deftest fanout-without-a-fleet-file-exits-1-with-one-line
+  (let [r (run #(cli/fanout-main ["0.8.27"] {"FLEET_JSON" "/nonexistent/fleet.json"} {}))]
+    (is (= 1 (:rc r)))
+    (is (str/includes? (:err r) "fanout: cannot read /nonexistent/fleet.json"))))

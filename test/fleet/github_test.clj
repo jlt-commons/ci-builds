@@ -1,5 +1,6 @@
 (ns fleet.github-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [clojure.string :as str]
+            [clojure.test :refer [deftest is testing]]
             [fleet.github :as gh]))
 
 (defn- stub
@@ -133,3 +134,45 @@
       (let [e (try ((f c) "repos/o/r") nil (catch Exception e e))]
         (is (identical? boom e))
         (is (nil? (gh/status-of e)))))))
+
+(deftest get-redirected-log-follows-the-302-without-the-token
+  (let [seen (atom [])
+        blob "https://productionresultssa1.blob.core.windows.net/logs/1?sig=abc"
+        c    (gh/client {:token "tok"
+                         :request (stub {"https://api.github.com/repos/o/r/actions/jobs/7/logs"
+                                         {:status 302 :headers {"Location" blob} :body ""}
+                                         blob {:status 200 :headers {} :body "log text\n"}}
+                                        seen)})]
+    (is (= "log text\n" ((:get-redirected-log c) "repos/o/r/actions/jobs/7/logs")))
+    (is (= 2 (count @seen)))
+    (is (= "Bearer tok" (get-in (first @seen) [:headers "Authorization"])))
+    (is (= blob (:url (second @seen))))
+    (is (not-any? #(= "authorization" (str/lower-case (name %)))
+                  (keys (:headers (second @seen)))))))
+
+(deftest get-redirected-log-accepts-a-direct-200
+  (let [c (gh/client {:token "tok"
+                      :request (stub {"https://api.github.com/l" {:status 200 :headers {} :body "direct"}} (atom []))})]
+    (is (= "direct" ((:get-redirected-log c) "l")))))
+
+(deftest get-redirected-log-refuses-a-non-https-location
+  (let [seen (atom [])
+        c    (gh/client {:token "tok"
+                         :request (stub {"https://api.github.com/l"
+                                         {:status 302 :headers {"location" "http://evil.example/x"} :body ""}}
+                                        seen)})
+        e    (try ((:get-redirected-log c) "l") nil (catch Exception e e))]
+    (is (= :bad-redirect (:reason (ex-data e))))
+    (is (= 1 (count @seen)))))
+
+(deftest get-redirected-log-redirect-without-location-throws
+  (let [c (gh/client {:request (stub {"https://api.github.com/l" {:status 302 :headers {} :body ""}} (atom []))})
+        e (try ((:get-redirected-log c) "l") nil (catch Exception e e))]
+    (is (= 302 (gh/status-of e)))))
+
+(deftest get-redirected-log-error-from-the-blob-host-throws
+  (let [blob "https://blob.example/x"
+        c    (gh/client {:request (stub {"https://api.github.com/l" {:status 302 :headers {"Location" blob} :body ""}
+                                         blob {:status 403 :headers {} :body "expired"}} (atom []))})
+        e    (try ((:get-redirected-log c) "l") nil (catch Exception e e))]
+    (is (= 403 (gh/status-of e)))))

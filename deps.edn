@@ -14,6 +14,7 @@
                :requires ([clojure.test :as t]
                           [fleet.cli-test]
                           [fleet.collect-test]
+                          [fleet.fanout-test]
                           [fleet.github-test]
                           [fleet.publish-test]
                           [fleet.refresh-test]
@@ -21,12 +22,17 @@
                           [fleet.version-test])
                :task (let [{:keys [fail error]} (t/run-tests 'fleet.cli-test
                                                              'fleet.collect-test
+                                                             'fleet.fanout-test
                                                              'fleet.github-test
                                                              'fleet.publish-test
                                                              'fleet.refresh-test
                                                              'fleet.status-test
                                                              'fleet.version-test)]
                        (when (pos? (+ fail error)) (System/exit 1)))}
+
+         fleet:fanout {:doc "Dispatch every fleet project against a jolt version and wait: [version] (blank = latest release; env: GH_TOKEN, FLEET_JSON)"
+                       :requires ([fleet.cli :as cli])
+                       :task (System/exit (cli/fanout-main *command-line-args*))}
 
          fleet:own-pin {:doc "Print each fleet project's latest push run and pin as JSON (env: GH_TOKEN, FLEET_JSON)"
                         :requires ([fleet.cli :as cli])
