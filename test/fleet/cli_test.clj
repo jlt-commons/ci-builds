@@ -276,3 +276,46 @@
     (is (= 0 (:rc r)))
     (is (str/includes? (:out r) "::warning::NIGHTLY_MAX_AGE_HOURS is not a whole number of hours, using 48"))
     (is (= "true" (get-in r [:o "proceed"])))))
+
+(defn- deps-gh
+  "One page per org: a in jlt-commons, b in jolt-lang pinning a."
+  []
+  {:post-json (fn [_ {:keys [variables]}]
+                (let [node (fn [n deps] {:name n :url (str "https://github.com/x/" n)
+                                         :defaultBranchRef {:target {:oid (apply str (repeat 40 "f"))}}
+                                         :deps {:text deps} :refs {:nodes []}})]
+                  {:data {:organization
+                          {:repositories
+                           {:pageInfo {:hasNextPage false}
+                            :nodes (if (= "jlt-commons" (:org variables))
+                                     [(node "a" "{}")]
+                                     [(node "b" "{:deps {io.github.jlt-commons/a {:git/sha \"ffff\"}}}")])}}}}))
+   :get-json (fn [p] (throw (ex-info (str "unexpected " p) {})))})
+
+(deftest deps-writes-the-graph
+  (let [d (tmp-dir)
+        f (str d "/deps.json")
+        r (run #(cli/deps-main ["--out" f] {} {:gh (deps-gh)}))
+        g (cheshire.core/parse-string (slurp f) true)]
+    (is (= 0 (:rc r)))
+    (is (= ["jlt-commons/a" "jolt-lang/b"] (map :id (:libraries g))))
+    (is (= [{:from "jlt-commons/a" :to "jolt-lang/b" :state "current"}]
+           (map #(select-keys % [:from :to :state]) (:edges g))))))
+
+(deftest deps-prints-to-stdout-without-out
+  (let [r (run #(cli/deps-main [] {} {:gh (deps-gh)}))]
+    (is (= 0 (:rc r)))
+    (is (str/includes? (:out r) "\"jolt-lang/b\""))))
+
+(deftest deps-usage-error
+  (is (= 2 (:rc (run #(cli/deps-main ["--bogus"] {} {:gh (deps-gh)}))))))
+
+(deftest deps-unchanged-ignores-generated-at-within-a-day
+  (let [g {:schema 1 :libraries [{:id "a"}]}]
+    (is (cli/deps-unchanged? (assoc g :generated_at "2026-11-20T00:00:00Z")
+                             (assoc g :generated_at "2026-11-20T10:00:00Z")))
+    (is (not (cli/deps-unchanged? (assoc g :generated_at "2026-11-19T00:00:00Z")
+                                  (assoc g :generated_at "2026-11-20T10:00:00Z")))
+        "a day-old file is rewritten so its age keeps meaning the job runs")
+    (is (not (cli/deps-unchanged? (assoc g :generated_at "2026-11-20T00:00:00Z")
+                                  (assoc g :generated_at "2026-11-20T00:00:01Z" :libraries []))))))
