@@ -32,7 +32,16 @@
           "failed_step": null
         }
       ],
-      "adhoc": []
+      "adhoc": [
+        {
+          "result": "pass",
+          "version": "0.8.25",
+          "installed": "0.8.25",
+          "run_url": "https://github.com/jlt-commons/glitter/actions/runs/44662973202",
+          "finished_at": "2026-11-20T02:48:34Z",
+          "failed_step": null
+        }
+      ]
     },
     "glitter-gl": {
       "pin": [
@@ -65,7 +74,16 @@
           "failed_step": null
         }
       ],
-      "adhoc": []
+      "adhoc": [
+        {
+          "result": "pass",
+          "version": "0.8.25",
+          "installed": "0.8.25",
+          "run_url": "https://github.com/jlt-commons/glitter-gl/actions/runs/44662976689",
+          "finished_at": "2026-11-20T02:48:11Z",
+          "failed_step": null
+        }
+      ]
     },
     "glitter-uikit": {
       "pin": [
@@ -98,7 +116,16 @@
           "failed_step": null
         }
       ],
-      "adhoc": []
+      "adhoc": [
+        {
+          "result": "pass",
+          "version": "0.8.25",
+          "installed": "0.8.25",
+          "run_url": "https://github.com/jlt-commons/glitter-uikit/actions/runs/44662980338",
+          "finished_at": "2026-11-20T02:45:59Z",
+          "failed_step": null
+        }
+      ]
     },
     "raygui-jlt": {
       "pin": [
@@ -131,7 +158,16 @@
           "failed_step": null
         }
       ],
-      "adhoc": []
+      "adhoc": [
+        {
+          "result": "pass",
+          "version": "0.8.25",
+          "installed": "0.8.25",
+          "run_url": "https://github.com/jlt-commons/raygui-jlt/actions/runs/44662983997",
+          "finished_at": "2026-11-20T02:46:44Z",
+          "failed_step": null
+        }
+      ]
     },
     "raylib-jlt": {
       "pin": [
@@ -164,7 +200,16 @@
           "failed_step": null
         }
       ],
-      "adhoc": []
+      "adhoc": [
+        {
+          "result": "pass",
+          "version": "0.8.25",
+          "installed": "0.8.25",
+          "run_url": "https://github.com/jlt-commons/raylib-jlt/actions/runs/44662988612",
+          "finished_at": "2026-11-20T02:48:35Z",
+          "failed_step": null
+        }
+      ]
     },
     "raylib-ios": {
       "pin": [
@@ -197,7 +242,16 @@
           "failed_step": null
         }
       ],
-      "adhoc": []
+      "adhoc": [
+        {
+          "result": "pass",
+          "version": "0.8.25",
+          "installed": "0.8.25",
+          "run_url": "https://github.com/jlt-commons/raylib-ios/actions/runs/44662992710",
+          "finished_at": "2026-11-20T02:45:31Z",
+          "failed_step": null
+        }
+      ]
     },
     "raylib-android": {
       "pin": [
@@ -230,7 +284,16 @@
           "failed_step": null
         }
       ],
-      "adhoc": []
+      "adhoc": [
+        {
+          "result": "pass",
+          "version": "0.8.25",
+          "installed": "0.8.25",
+          "run_url": "https://github.com/jlt-commons/raylib-android/actions/runs/44662996482",
+          "finished_at": "2026-11-20T02:45:35Z",
+          "failed_step": null
+        }
+      ]
     }
   }
 }

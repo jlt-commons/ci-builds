@@ -1,16 +1,12 @@
 {
   "schema": 1,
-  "generated_at": "2026-11-20T02:44:09Z",
-  "canary_run": "https://github.com/jlt-commons/ci-builds/actions/runs/44661939857",
+  "generated_at": "2026-11-20T02:49:09Z",
+  "canary_run": "https://github.com/jlt-commons/ci-builds/actions/runs/44662953716",
   "jolt": {
     "latest": {
       "version": "0.8.27"
     },
-    "nightly": {
-      "published_at": "2026-11-19T23:48:49Z",
-      "sha": "f4e82fc8eac874cae1658b7976518253027c4f6a",
-      "note": "nightly published 2026-11-19T23:48:49Z, 2h old, at f4e82fc8"
-    }
+    "nightly": null
   },
   "projects": [
     {
