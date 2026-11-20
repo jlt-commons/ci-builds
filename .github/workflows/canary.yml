@@ -447,8 +447,9 @@ jobs:
 
           # Verdict from the merged results: "name (version)" per bad cell.
           # fail, mismatch, timed-out and dispatch-failed are findings about
-          # jolt or the build; infra is our own misconfiguration and is
-          # reported separately.
+          # jolt or the build; infra (jolt not installable, or a dependency
+          # not downloadable) is not a finding about jolt and is reported
+          # separately.
           files=()
           if [ -d results ]; then
             while IFS= read -r f; do files+=("$f"); done < <(find results -name results.json | sort)
@@ -459,7 +460,8 @@ jobs:
                               | select(.result | IN("fail","mismatch","timed-out","dispatch-failed"))
                               | "\(.name) (\($v))"] | unique | join(", ")' "${files[@]}")
             INFRA=$(jq -rs '[.[] | .requested as $v | .projects[]
-                             | select(.result == "infra") | "\(.name) (\($v))"] | unique | join(", ")' "${files[@]}")
+                             | select(.result == "infra")
+                             | "\(.name) (\($v)\(if .failed_step then ", failed step: " + .failed_step else "" end))"] | unique | join(", ")' "${files[@]}")
           fi
 
           # The fleet job failed but no project says why (a leg crashed before
@@ -490,12 +492,14 @@ jobs:
           # filed as a fact about jolt. fanout reports those separately.
           if [ -n "$INFRA" ] && [ -z "$FAILED" ]; then
             body=$(printf '%s\n' \
-              "jolt could not be INSTALLED for: ${INFRA}" \
+              "Infra problems, not findings about jolt: ${INFRA}" \
               "" \
-              "This is not a finding about jolt. The fleet asked for a version it" \
-              "could not fetch, which usually means a project's \`JOLT_REPO\` points" \
-              "at a repository that does not publish it. It should be unset unless" \
-              "deliberately aimed at a fork." \
+              "A project either could not install jolt (check its \`JOLT_REPO\`," \
+              "which should be unset unless deliberately aimed at a fork, since the" \
+              "version may not exist in the repository it installs from) or could" \
+              "not download a dependency (a package registry problem, often Maven" \
+              "Central rate limiting while several projects build at once). The" \
+              "failed step in parentheses above shows which." \
               "" \
               "**Versions tested:** ${VERSIONS}" \
               "" \

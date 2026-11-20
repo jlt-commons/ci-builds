@@ -1,3 +1,4 @@
+2026-11-20T01:00:00.0000000Z ##[group]Run bb lsp:format-check
 2026-11-20T01:55:20.0000000Z [ERROR] Classpath lookup failed when running `/tmp/usr/local/opt/ClojureTools/bin/clojure -A:test:dev -Spath`. Some features may not work properly.
 2026-11-20T01:55:20.1000000Z Error building classpath. Failed to read artifact descriptor for org.clojure:clojure:jar:1.12.7
 2026-11-20T01:55:20.2000000Z Caused by: org.eclipse.aether.transfer.ArtifactTransferException: Could not transfer artifact org.clojure:clojure:pom:1.12.7 from/to central (https://repo1.maven.org/maven2/): status code: 429, reason phrase: Too Many Requests (429)

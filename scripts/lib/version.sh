@@ -78,17 +78,29 @@ uncovered_reason() {
 }
 
 # download_failure <logfile>...
-# Exits 0 when any log shows a dependency download failure (a package registry
-# refusing or lacking an artifact), otherwise 1. Prints nothing. An unreadable
-# log counts as no match.
+# Exits 0 only when EVERY given log shows a dependency download failure (a
+# package registry refusing or lacking an artifact) inside its failed step.
+# The failed step is the text from the last "##[group]Run " line before the
+# log's first "##[error]" line, up to that error line. A log with no
+# "##[error]" line, an unreadable log, or no logs at all is not a match.
+# Prints nothing. Pass exactly the failed jobs' logs, so one real break among
+# them keeps the whole run a failure.
 download_failure() {
   [ "$#" -gt 0 ] || return 1
-  grep -sqF \
-    -e 'status code: 429' \
-    -e 'Too Many Requests' \
-    -e 'Could not transfer artifact' \
-    -e 'Could not find artifact' \
-    -e 'Classpath lookup failed' \
-    -e 'Failed to read artifact descriptor' \
-    -- "$@"
+  local f section
+  for f in "$@"; do
+    [ -r "$f" ] || return 1
+    section=$(awk '
+      $2 == "##[group]Run" { buf = $0; next }
+      $2 ~ /^##\[error\]/ { print buf; exit }
+      { buf = buf "\n" $0 }
+    ' "$f")
+    [ -n "$section" ] || return 1
+    printf '%s\n' "$section" | grep -qF \
+      -e 'status code: 429' \
+      -e 'Too Many Requests' \
+      -e 'Could not transfer artifact' \
+      -e 'Could not find artifact' \
+      -e 'Failed to read artifact descriptor' || return 1
+  done
 }

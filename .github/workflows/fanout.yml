@@ -228,25 +228,29 @@ jobs:
                 # A project can also fail because a dependency would not download
                 # (Maven Central rate limiting or a missing artifact). That is the
                 # registry's problem, not a break in jolt. Read only the failed
-                # jobs' logs. If a log cannot be fetched we have no evidence, so
+                # jobs' logs. If any log cannot be fetched we have no evidence, so
                 # the run stays a failure.
                 if [ "$cc" = "failure" ]; then
                   logs=()
+                  allfetched=1
                   for jid in $(gh api "repos/jlt-commons/$p/actions/runs/${RUN[$p]}/jobs" \
                                  --jq '.jobs[] | select(.conclusion=="failure") | .id' 2>/dev/null); do
                     if gh api --allow-escape-sequences "repos/jlt-commons/$p/actions/jobs/$jid/logs" \
                          > "$RES_DIR/$p-$jid.log" 2> "$RES_DIR/$p-$jid.err"; then
                       logs+=("$RES_DIR/$p-$jid.log")
                     else
+                      allfetched=0
                       echo "::warning::could not fetch the log of $p job $jid: $(head -c 300 "$RES_DIR/$p-$jid.err")"
                     fi
                   done
-                  if [ "${#logs[@]}" -gt 0 ] && download_failure "${logs[@]}"; then
+                  # Every failed job must show a download failure in its failed
+                  # step. A job whose log we could not read counts against it.
+                  if [ "$allfetched" = "1" ] && [ "${#logs[@]}" -gt 0 ] && download_failure "${logs[@]}"; then
                     cc="deps-unavailable"
                   fi
                 fi
                 FIN[$p]=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-                if [ "$cc" = "failure" ] || [ "$cc" = "deps-unavailable" ]; then
+                if [ "$cc" = "failure" ] || [ "$cc" = "deps-unavailable" ] || [ "$cc" = "toolchain-unavailable" ]; then
                   FSTEP[$p]=$(gh api "repos/jlt-commons/$p/actions/runs/${RUN[$p]}/jobs" \
                     --jq '[.jobs[].steps[]? | select(.conclusion=="failure") | .name] | first // empty' \
                     2>/dev/null || true)

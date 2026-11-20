@@ -57,5 +57,13 @@ logs2() { printf '2026-11-19T01:02:03.0000000Z jolt v%s\n' "$1" > "$BATS_TMPDIR/
 @test "download_failure: maven 429"     { run download_failure "$F/log-maven-429.txt"; [ "$status" -eq 0 ]; [ -z "$output" ]; }
 @test "download_failure: maven absent"  { run download_failure "$F/log-maven-absent.txt"; [ "$status" -eq 0 ]; }
 @test "download_failure: test failure"  { run download_failure "$F/log-test-failure.txt"; [ "$status" -eq 1 ]; [ -z "$output" ]; }
-@test "download_failure: any of several logs" { run download_failure "$F/log-test-failure.txt" "$F/log-maven-429.txt"; [ "$status" -eq 0 ]; }
 @test "download_failure: no args"       { run download_failure; [ "$status" -eq 1 ]; }
+
+@test "download_failure: earlier step printed 429, failed step is a test" { run download_failure "$F/log-early-429.txt"; [ "$status" -eq 1 ]; }
+@test "download_failure: one deps log and one test log is not infra" { run download_failure "$F/log-maven-429.txt" "$F/log-test-failure.txt"; [ "$status" -eq 1 ]; }
+@test "download_failure: both deps logs"  { run download_failure "$F/log-maven-429.txt" "$F/log-maven-absent.txt"; [ "$status" -eq 0 ]; }
+@test "download_failure: no ##[error] line" { run download_failure "$F/log-no-error.txt"; [ "$status" -eq 1 ]; }
+@test "download_failure: Classpath lookup failed alone is not enough" {
+  printf '%s\n' '2026-11-20T01:00:00.0000000Z ##[group]Run x' '2026-11-20T01:00:01.0000000Z [ERROR] Classpath lookup failed' '2026-11-20T01:00:02.0000000Z ##[error]Process completed with exit code 1.' > "$BATS_TMPDIR/cp.txt"
+  run download_failure "$BATS_TMPDIR/cp.txt"; [ "$status" -eq 1 ]
+}
