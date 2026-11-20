@@ -76,6 +76,13 @@
       } ],
       "pin" : [ {
         "failed_step" : null,
+        "finished_at" : "2026-11-20T19:17:04Z",
+        "installed" : null,
+        "result" : "pass",
+        "run_url" : "https://github.com/jlt-commons/docs-engine/actions/runs/44800604187",
+        "version" : "0.8.27"
+      }, {
+        "failed_step" : null,
         "finished_at" : "2026-11-20T08:53:20Z",
         "installed" : null,
         "result" : "pass",
