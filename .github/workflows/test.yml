@@ -16,14 +16,6 @@ env:
   TOOLS_JOLT_VERSION: ${{ vars.TOOLS_JOLT_VERSION || '0.8.27' }}
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - run: sudo apt-get install -y bats
-      - run: bats test/
-      - run: shellcheck -x scripts/lib/*.sh scripts/build-status.sh scripts/collect-own-pin.sh scripts/collect-uncovered.sh scripts/publish-status.sh scripts/refresh-status.sh
-
   jolt:
     runs-on: ubuntu-latest
     steps:

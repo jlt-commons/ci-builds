@@ -1,5 +1,5 @@
 (ns fleet.publish-test
-  "Ports test/publish-status.bats: a local bare repo stands in for origin, and
+  "Publishing to the status branch: a local bare repo stands in for origin, and
   rebuild is a function (the in-process REBUILD)."
   (:require [babashka.fs :as fs]
             [cheshire.core :as json]

@@ -1,5 +1,5 @@
 (ns fleet.refresh-test
-  "Ports test/refresh-status.bats. The collectors are thunks returning the
+  "Refresh. The collectors are thunks returning the
   status fixtures, so nothing touches the network."
   (:require [babashka.fs :as fs]
             [cheshire.core :as json]

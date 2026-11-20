@@ -86,7 +86,7 @@
       :else (recur (next args) opts (conj results (first args))))))
 
 (defn status-main
-  "fleet:status: the pure merge, with build-status.sh's flags."
+  "fleet:status: the pure merge, with its own flags."
   [args]
   (let [{:keys [opts results error]} (parse-status-args args)
         missing (remove opts [:own-pin :uncovered :latest :nightly-json :canary-run :now :out-dir])]

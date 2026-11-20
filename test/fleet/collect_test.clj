@@ -1,5 +1,5 @@
 (ns fleet.collect-test
-  "Ports test/collect.bats. gh is a map of stub fns over a data 'world' read
+  "The collectors. gh is a map of stub fns over a data 'world' read
   from test/fixtures/gh, so no network is touched."
   (:require [cheshire.core :as json]
             [clojure.string :as str]
@@ -170,9 +170,8 @@
     (is (str/includes? err "badyaml"))))
 
 (deftest uncovered-transport-failure-is-could-not-read-not-no-ci-yml
-  ;; Replaces "missing yq fails loudly": jolt parses YAML in-process, so there
-  ;; is no external tool to miss. The matching risk is a transport error (no
-  ;; :status) being mistaken for an explicit 404.
+  ;; jolt parses YAML in-process, so there is no external tool to miss. The
+  ;; risk is a transport error (no :status) being mistaken for an explicit 404.
   (let [w            (assoc-in (world) [:ci "readyrepo"] (ex-info "connection refused" {}))
         [rows _err]  (warnings-of #(unc* w))]
     (is (= "could not read repository" (:reason (by-name rows "readyrepo"))))))

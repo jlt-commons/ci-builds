@@ -18,7 +18,7 @@
 (def ^:private nj-aaaa {:published_at "x" :sha "aaaa1111" :note "n"})
 
 (defn- run-bs
-  "build with the bats defaults. Opts override: :ps :ph :op :latest :nj
+  "build with the default inputs. Opts override: :ps :ph :op :latest :nj
   (use ::none for a nil nightly)."
   [{:keys [ps ph op latest nightly] :or {latest "0.8.27" nightly nj}} & results]
   (status/build {:prev-status  ps
@@ -168,8 +168,8 @@
   (is (thrown? Exception
                (run-bs {} (assoc-in (fx "results-latest.json") [:projects 0 :result] "weird")))))
 
-;; The bats case "unparseable results file" is the file-reading edge. Here it
-;; is the shape a failed parse gives the pure function: not a map.
+;; An unparseable results file is the file-reading edge. Here it is the
+;; shape a failed parse gives the pure function: not a map.
 (deftest unparseable-results-input-is-rejected
   (is (thrown? Exception (run-bs {} nil)))
   (is (thrown? Exception (run-bs {} "{not json"))))
