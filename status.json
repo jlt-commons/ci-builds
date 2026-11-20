@@ -1,12 +1,12 @@
 {
-  "canary_run" : "https://github.com/jlt-commons/ci-builds/actions/runs/44673915842",
-  "generated_at" : "2026-11-20T04:27:35Z",
+  "canary_run" : "https://github.com/jlt-commons/ci-builds/actions/runs/44674616357",
+  "generated_at" : "2026-11-20T04:30:25Z",
   "jolt" : {
     "latest" : {
       "version" : "0.8.27"
     },
     "nightly" : {
-      "note" : "nightly published 2026-11-19T23:48:49Z at f4e82fc8",
+      "note" : "manual dispatch of nightly, freshness gate not applied",
       "published_at" : "2026-11-19T23:48:49Z",
       "sha" : "f4e82fc8eac874cae1658b7976518253027c4f6a"
     }
@@ -23,10 +23,10 @@
       },
       "nightly" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-20T04:25:23Z",
+        "finished_at" : "2026-11-20T04:29:40Z",
         "installed" : "0.8.27-376-gf4e82fc8",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/glitter/actions/runs/44674180703",
+        "run_url" : "https://github.com/jlt-commons/glitter/actions/runs/44674665742",
         "version" : "nightly"
       },
       "pin" : {
@@ -52,10 +52,10 @@
       },
       "nightly" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-20T04:25:49Z",
+        "finished_at" : "2026-11-20T04:30:06Z",
         "installed" : "0.8.27-376-gf4e82fc8",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/glitter-gl/actions/runs/44674185489",
+        "run_url" : "https://github.com/jlt-commons/glitter-gl/actions/runs/44674668830",
         "version" : "nightly"
       },
       "pin" : {
@@ -81,10 +81,10 @@
       },
       "nightly" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-20T04:25:24Z",
+        "finished_at" : "2026-11-20T04:29:41Z",
         "installed" : "0.8.27-376-gf4e82fc8",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/glitter-uikit/actions/runs/44674189452",
+        "run_url" : "https://github.com/jlt-commons/glitter-uikit/actions/runs/44674671807",
         "version" : "nightly"
       },
       "pin" : {
@@ -110,10 +110,10 @@
       },
       "nightly" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-20T04:25:51Z",
+        "finished_at" : "2026-11-20T04:30:07Z",
         "installed" : "0.8.27-376-gf4e82fc8",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/raygui-jlt/actions/runs/44674192826",
+        "run_url" : "https://github.com/jlt-commons/raygui-jlt/actions/runs/44674674547",
         "version" : "nightly"
       },
       "pin" : {
@@ -139,10 +139,10 @@
       },
       "nightly" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-20T04:25:01Z",
+        "finished_at" : "2026-11-20T04:29:45Z",
         "installed" : "0.8.27-376-gf4e82fc8",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/raylib-android/actions/runs/44674203403",
+        "run_url" : "https://github.com/jlt-commons/raylib-android/actions/runs/44674682703",
         "version" : "nightly"
       },
       "pin" : {
@@ -168,10 +168,10 @@
       },
       "nightly" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-20T04:25:27Z",
+        "finished_at" : "2026-11-20T04:29:43Z",
         "installed" : "0.8.27-376-gf4e82fc8",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/raylib-ios/actions/runs/44674199599",
+        "run_url" : "https://github.com/jlt-commons/raylib-ios/actions/runs/44674680082",
         "version" : "nightly"
       },
       "pin" : {
@@ -197,10 +197,10 @@
       },
       "nightly" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-20T04:27:13Z",
+        "finished_at" : "2026-11-20T04:30:08Z",
         "installed" : "0.8.27-376-gf4e82fc8",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/raylib-jlt/actions/runs/44674195964",
+        "run_url" : "https://github.com/jlt-commons/raylib-jlt/actions/runs/44674677025",
         "version" : "nightly"
       },
       "pin" : {
