@@ -179,7 +179,9 @@
             {:version "0.8.27"
              :projects [(row "c" "not-run" :detail "cancelled")
                         (row "l" "infra" :cause :logs)]})]
-    (is (str/includes? md "| `c` | not run (cancelled) |"))
+    (is (str/includes? md "| `c` | could not run (cancelled) |"))
+    (is (str/includes? md "**Could not run:** c\n"))
+    (is (not (str/includes? md "All ")))
     (is (str/includes? md "| `l` | **could not read the run's logs** |"))
     (is (str/includes? md "**Could not read the logs of a green run for:** l\n"))
     (is (not (str/includes? md "Could not install")))
@@ -277,10 +279,10 @@
               :run_url "https://github.com/jlt-commons/ci-builds/actions/runs/999"
               :projects [{:name "alpha" :result "pass" :installed "0.8.27"
                           :run_url "https://github.com/jlt-commons/alpha/actions/runs/101"
-                          :finished_at "2026-11-20T03:00:00Z" :failed_step nil}
+                          :finished_at "2026-11-20T03:00:00Z" :failed_step nil :detail "success"}
                          {:name "beta" :result "pass" :installed "0.8.27"
                           :run_url "https://github.com/jlt-commons/beta/actions/runs/202"
-                          :finished_at "2026-11-20T03:00:00Z" :failed_step nil}]}
+                          :finished_at "2026-11-20T03:00:00Z" :failed_step nil :detail "success"}]}
              (:results r))))
     (is (str/includes? (:summary r) "All 2 projects build against jolt `0.8.27`."))
     (is (= (str "results_dir=" (:dir r) "/fanout-results\nartifact=results-0.8.27\nversion=0.8.27\nfailed=\ninfra=\n")
@@ -324,7 +326,7 @@
     (is (= 1 (:rc r)))
     (is (= {:result "dispatch-failed" :run_url nil :finished_at nil :failed_step "HTTP 422"}
            (select-keys b [:result :run_url :finished_at :failed_step])))
-    (is (str/includes? (:stdout r) "\n  HTTP 422\n"))
+    (is (str/includes? (:stdout r) "\n  gh: HTTP 422\n"))
     (is (not-any? #(and (= :get (first %)) (str/includes? (second %) "beta")) @(:calls w)))))
 
 (defn- with-clock
@@ -412,9 +414,11 @@
         a (first (:projects (:results r)))]
     (is (= 1 (:rc r)))
     (is (= {:result "dispatch-failed" :run_url nil} (select-keys a [:result :run_url])))
-    (is (str/includes? (:output r) "failed=alpha\n"))
-    (is (str/includes? (:summary r) "| `alpha` | **FAIL** (no-run-appeared) | - |"))
-    (is (str/includes? (:summary r) "**Broken by jolt `0.8.27`:** alpha"))
+    (is (str/includes? (:output r) "failed=\ninfra=alpha\n"))
+    (is (str/includes? (:summary r) "| `alpha` | could not run (no-run-appeared) | - |"))
+    (is (str/includes? (:summary r) "**Could not run:** alpha\n"))
+    (is (str/includes? (:summary r) "says nothing about jolt"))
+    (is (not (str/includes? (:summary r) "Broken by jolt")))
     (is (not (str/includes? (:summary r) "All ")))))
 
 (deftest run-one-malformed-project-is-fail-and_does_not_drop_the_others
@@ -500,11 +504,35 @@
                              (base args env)))))
         r (run-fake w "0.8.27" :token token)
         b (second (:projects (:results r)))]
-    (testing "indented two spaces, so it cannot start a workflow command"
-      (is (some #(= "  ::set-output name=x::y token ***" %) (str/split-lines (:stdout r))))
-      (is (not-any? #(str/starts-with? % "::set-output") (str/split-lines (:stdout r)))))
+    (testing "R41: the runner trims leading whitespace, so the line is prefixed, not just indented"
+      (is (some #(= "  gh: ::set-output name=x::y token ***" %) (str/split-lines (:stdout r))))
+      (is (not-any? #(str/starts-with? (str/trim %) "::set-output") (str/split-lines (:stdout r))))
+      (testing "the only `::` lines are the loop's own group markers"
+        (is (every? #(re-matches #"::(group|endgroup)::.*" %)
+                    (filter #(str/starts-with? (str/trim %) "::") (str/split-lines (:stdout r)))))))
     (testing "first line only, in the row"
       (is (= "::set-output name=x::y token ***" (:failed_step b))))
     (testing "the token is nowhere in the output"
       (doseq [text [(:stdout r) (:stderr r) (:summary r) (:output r) (json/generate-string (:results r))]]
         (is (not (str/includes? text token)))))))
+
+(deftest r40-a-cancelled-project-is-untested-so-the-run-fails-and-never_reads_as_all_pass
+  (let [w (fake-world {:runs {"alpha" [{:status "completed" :conclusion "cancelled"}] "beta" [ok-run]}
+                       :jobs {"beta" [(job 2 "success")]}
+                       :logs {2 (jolt-log "0.8.27")}})
+        r (run-fake w "0.8.27")
+        a (first (:projects (:results r)))]
+    (is (= 1 (:rc r)))
+    (is (= {:result "not-run" :detail "cancelled"} (select-keys a [:result :detail])))
+    (is (str/includes? (:output r) "failed=\ninfra=alpha\n"))
+    (is (not (str/includes? (:summary r) "All ")))
+    (is (str/includes? (:summary r) "**Could not run:** alpha\n"))
+    (is (str/includes? (:summary r) "| `alpha` | could not run (cancelled) |"))
+    (is (str/includes? (:stderr r) "infra: alpha"))))
+
+(deftest r40-a-plain-skipped-run-is-still-not-run-and-passes
+  (let [w (fake-world {:runs {"alpha" [{:status "completed" :conclusion "skipped"}] "beta" [ok-run]}
+                       :jobs {"beta" [(job 2 "success")]}
+                       :logs {2 (jolt-log "0.8.27")}})
+        r (run-fake w "0.8.27")]
+    (is (= 0 (:rc r)))))

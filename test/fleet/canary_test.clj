@@ -352,6 +352,21 @@
       (is (false? (:infra? r)))
       (is (str/includes? (:body r) "**Failing:** glitter (0.8.27)\n")))))
 
+(defn- res-detail [requested name result detail]
+  {:requested requested :projects [{:name name :result result :detail detail}]})
+
+(deftest r40-an-untested-project-is-infra-never-recovered
+  (doseq [c ["cancelled" "startup_failure" "action_required"]]
+    (testing c
+      (let [r (ib :results [(res "0.8.27" ["a" "pass"]) (res-detail "0.8.27" "b" "not-run" c)]
+                  :fleet-result "failure")]
+        (is (true? (:broken? r)))
+        (is (true? (:infra? r)))
+        (is (str/starts-with? (:body r) "Infra problems, not findings about jolt: b (0.8.27)"))
+        (is (not (str/includes? (:body r) "Recovered"))))))
+  (testing "a plain skipped not-run still does not break"
+    (is (false? (:broken? (ib :results [(res-detail "0.8.27" "b" "not-run" "skipped")]))))))
+
 (deftest infra-plus-a-real-failure-is-reported-as-a-failure
   (let [r (ib :results [(res "0.8.27" ["glitter" "fail"] ["ebb" "infra" "Install jolt"])])]
     (is (true? (:broken? r)))

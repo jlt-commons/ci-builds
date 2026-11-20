@@ -138,12 +138,24 @@
 
 (defn- joined [names] (str/join " " names))
 
-(defn- icon [{:keys [result cause detail installed]}]
+(def ^:private untested-details #{"cancelled" "startup_failure" "action_required"})
+
+(defn- untested?
+  "R40: a not-run row whose run was cancelled, never started or waited on a
+  person. Nothing was learned, so it is not a pass and not a recovery."
+  [{:keys [result detail]}]
+  (and (= "not-run" result) (contains? untested-details detail)))
+
+(defn- could-not-run?
+  "R42: the project gave no answer for a reason that is not a jolt result."
+  [{:keys [result] :as row}]
+  (or (= "dispatch-failed" result) (untested? row)))
+
+(defn- icon [{:keys [result cause detail installed] :as row}]
   (case result
     "pass"     "pass"
-    "not-run"  (if (contains? #{"cancelled" "startup_failure" "action_required"} detail)
-                 (str "not run (" detail ")")
-                 "skipped")
+    "not-run"  (if (untested? row) (str "could not run (" detail ")") "skipped")
+    "dispatch-failed" (str "could not run (" detail ")")
     "mismatch" (str "**WRONG JOLT** (ran " (or installed "no version found") ")")
     "infra"    (case cause
                  :deps "**could not download dependencies**"
@@ -152,14 +164,17 @@
     (str "**FAIL** (" detail ")")))
 
 (defn- split-names
-  "Project names by outcome, in fleet order: {:failed :infra :nodeps
+  "Project names by outcome, in fleet order: {:failed :infra :couldnt :nodeps
   :nologs :mismatch :noinstall}. failed holds mismatches too, as the table
-  always did."
+  always did. infra also holds the could-not-run rows (dispatch-failed and
+  untested, R40/R42), which is how they reach the exit code, the infra
+  output and the canary report."
   [projects]
   (let [names (fn [pred] (mapv :name (filter pred projects)))]
     {:mismatch  (names #(= "mismatch" (:result %)))
-     :failed    (names #(contains? #{"mismatch" "fail" "timed-out" "dispatch-failed"} (:result %)))
-     :infra     (names #(= "infra" (:result %)))
+     :failed    (names #(contains? #{"mismatch" "fail" "timed-out"} (:result %)))
+     :infra     (names #(or (= "infra" (:result %)) (could-not-run? %)))
+     :couldnt   (names could-not-run?)
      :nodeps    (names #(and (= "infra" (:result %)) (= :deps (:cause %))))
      :nologs    (names #(and (= "infra" (:result %)) (= :logs (:cause %))))
      :noinstall (names #(and (= "infra" (:result %)) (not (#{:deps :logs} (:cause %)))))}))
@@ -167,7 +182,7 @@
 (defn summary-md
   "The step summary: a row per project, then a line per kind of trouble."
   [{:keys [version projects]}]
-  (let [{:keys [mismatch failed infra nodeps nologs noinstall]} (split-names projects)
+  (let [{:keys [mismatch failed infra couldnt nodeps nologs noinstall]} (split-names projects)
         lines
         (concat
          [(str "## jolt `" version "` across " org) "" "| project | result | run |" "|---|---|---|"]
@@ -177,6 +192,11 @@
          [""]
          (when (seq mismatch) [(str "**Ran on the wrong jolt:** " (joined mismatch))])
          (when (seq failed) [(str "**Broken by jolt `" version "`:** " (joined failed))])
+         (when (seq couldnt)
+           [(str "**Could not run:** " (joined couldnt))
+            ""
+            "These projects gave no answer because the run never started, was cancelled or"
+            "waited on a person. That says nothing about jolt, and they are not counted as passing."])
          (when (seq noinstall)
            [(str "**Could not install jolt `" version "` for:** " (joined noinstall))
             ""
@@ -213,7 +233,8 @@
                          :installed   (:installed pr)
                          :run_url     (:run-url pr)
                          :finished_at (:finished-at pr)
-                         :failed_step (:failed-step pr)})
+                         :failed_step (:failed-step pr)
+                         :detail      (:detail pr)})
                       projects)})
 
 ;; ---------------------------------------------------------------------------
@@ -301,9 +322,10 @@
                            (log (str "  dispatched " pr ", run id unknown"))
                            (assoc acc pr {:need-id? true}))))
                    (let [line (first-line (str out err) token)]
-                     ;; Indented, so gh's text can never open a workflow command.
                      (log (str "  FAILED to dispatch " pr))
-                     (log (str "  " line))
+                     ;; Indented AND prefixed: the runner trims leading
+                     ;; whitespace before looking for a `::` command (R41).
+                     (log (str "  gh: " line))
                      (assoc acc pr {:detail "dispatch-failed" :failed-step line})))))
              {} projects)]
     (log "::endgroup::")

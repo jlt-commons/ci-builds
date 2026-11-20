@@ -272,18 +272,27 @@
 ;; ---------------------------------------------------------------------------
 ;; Pure: the report
 
-(def ^:private finding? #{"fail" "mismatch" "timed-out"})
+(def ^:private finding-result? #{"fail" "mismatch" "timed-out"})
+(defn- finding? [p] (finding-result? (:result p)))
 
 ;; R36: a dispatch that never started says nothing about jolt. It is our App or
 ;; configuration, so the issue groups it with infra. The result value on the
 ;; status page stays dispatch-failed.
 (def ^:private infra-result? #{"infra" "dispatch-failed"})
 
+;; R40: a run that was cancelled, never started or waited on a person is
+;; not-run with the conclusion as its detail. It tested nothing, so it is
+;; neither a recovery nor a jolt finding: infra.
+(defn- infra? [p]
+  (or (infra-result? (:result p))
+      (and (= "not-run" (:result p))
+           (contains? #{"cancelled" "startup_failure" "action_required"} (:detail p)))))
+
 (defn- cells
   "Sorted, distinct \"name (version)\" strings for projects whose result
   satisfies pred. label decorates the version part."
   [results pred label]
-  (->> (for [r results, p (:projects r) :when (pred (:result p))]
+  (->> (for [r results, p (:projects r) :when (pred p)]
          (str (:name p) " (" (label (:requested r) p) ")"))
        distinct sort vec))
 
@@ -296,7 +305,7 @@
   printed)."
   [results]
   {:failed (cells results finding? (fn [v _] v))
-   :infra  (cells results infra-result?
+   :infra  (cells results infra?
                   (fn [v p] (str v (when (:failed_step p) (str ", failed step: " (:failed_step p))))))})
 
 (defn- lines [& ls] (str/join "\n" ls))
@@ -342,8 +351,8 @@
               "not download a dependency (a package registry problem, often Maven"
               "Central rate limiting while several projects build at once), or"
               "could not be dispatched (the jlt-commons-ci App lacks access to the"
-              "repository, or GitHub refused the dispatch). The failed step in"
-              "parentheses above shows which."
+              "repository, or GitHub refused the dispatch), or its run was cancelled before it"
+              "answered. The failed step in parentheses above shows which."
               ""
               (str "**Versions tested:** " versions)
               ""
