@@ -13,7 +13,7 @@ env:
   # The tool jolt: runs the fleet tools and their tests. Pinned so a release
   # published overnight can't turn this red on an untouched tree. This is not
   # the jolt the fleet is tested against.
-  TOOLS_JOLT_VERSION: ${{ vars.TOOLS_JOLT_VERSION || '0.8.27' }}
+  TOOLS_JOLT_VERSION: ${{ vars.TOOLS_JOLT_VERSION || '0.8.28' }}
 
 jobs:
   jolt:

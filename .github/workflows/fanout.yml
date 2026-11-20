@@ -54,7 +54,7 @@ permissions:
   contents: read
 
 env:
-  TOOLS_JOLT_VERSION: ${{ vars.TOOLS_JOLT_VERSION || '0.8.27' }}
+  TOOLS_JOLT_VERSION: ${{ vars.TOOLS_JOLT_VERSION || '0.8.28' }}
 
 jobs:
   fanout:

@@ -57,7 +57,7 @@ permissions:
 
 env:
   # The tool jolt: runs the fleet tools. Pinned, and never the jolt under test.
-  TOOLS_JOLT_VERSION: ${{ vars.TOOLS_JOLT_VERSION || '0.8.27' }}
+  TOOLS_JOLT_VERSION: ${{ vars.TOOLS_JOLT_VERSION || '0.8.28' }}
 
 # One canary at a time. A run that outlives its 15-minute tick must not race
 # the next one on the status branch, and cancelling it would lose its results,

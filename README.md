@@ -131,7 +131,7 @@ could not be downloaded, a run that could not start (dispatch failed or
 cancelled) and logs that could not be read. None of those is a finding about
 jolt.
 
-The tools run on their own jolt, `vars.TOOLS_JOLT_VERSION` (default `0.8.27`),
+The tools run on their own jolt, `vars.TOOLS_JOLT_VERSION` (default `0.8.28`),
 pinned in the workflows and never the jolt under test. A release published
 overnight must not change the thing that measures releases.
 
