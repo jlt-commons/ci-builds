@@ -1,0 +1,14 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: sudo apt-get install -y bats
+      - run: bats test/
+      - run: shellcheck scripts/lib/*.sh

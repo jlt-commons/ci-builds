@@ -1,0 +1,7 @@
+2026-11-19T09:59:58.1000000Z [36;1mbase_url="https://github.com/jolt-lang/jolt/releases/download/v${version}"[0m
+2026-11-19T09:59:58.2000000Z Downloading https://github.com/jolt-lang/jolt/releases/download/v0.8.24/jolt-linux-amd64.tar.gz
+2026-11-19T09:59:59.3000000Z Successfully installed jolt v0.8.24 to /home/runner/.local/bin/jolt
+2026-11-19T09:59:59.4000000Z ##[group]Run jolt --version
+2026-11-19T09:59:59.5000000Z [36;1mjolt --version[0m
+2026-11-19T10:00:00.0000000Z jolt v0.8.24
+2026-11-19T10:00:00.1000000Z ##[group]Run jolt -T:test
