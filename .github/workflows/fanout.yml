@@ -343,3 +343,56 @@ jobs:
           name: ${{ steps.run.outputs.artifact || format('results-{0}', steps.version.outputs.version) }}
           path: ${{ steps.run.outputs.results_dir }}/results.json
           if-no-files-found: warn
+
+  # An ad-hoc (workflow_dispatch) fan-out publishes its own result to the status
+  # page's history. Under workflow_call github.workflow is the CALLER's name, so
+  # this skips under canary, whose own `status` job publishes instead. It adds
+  # to history only: --nightly-json null keeps the grid's nightly cells as they
+  # were.
+  publish-adhoc:
+    needs: fanout
+    if: always() && github.workflow == 'fan-out'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Mint an installation token
+        id: token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ secrets.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: jlt-commons
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: results-*
+          path: results
+
+      - name: Publish the fleet status
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          NIGHTLY_JSON: "null"
+          CANARY_RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          latest="$(curl -fsSL https://api.github.com/repos/jolt-lang/jolt/releases/latest \
+                    | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -1)"
+          latest="${latest#v}"
+          [ -n "$latest" ] || { echo "could not resolve jolt's latest release" >&2; exit 1; }
+          export LATEST="$latest"
+          # REBUILD is a command string for publish-status.sh to run with sh -c,
+          # so the quotes are meant literally.
+          # shellcheck disable=SC2089,SC2090
+          REBUILD='bash scripts/refresh-status.sh "$OUT_DIR"'
+          if [ -d results ]; then
+            while IFS= read -r f; do REBUILD="$REBUILD '$PWD/$f'"; done \
+              < <(find results -name results.json | sort)
+          fi
+          # shellcheck disable=SC2090
+          export REBUILD
+          echo "REBUILD: $REBUILD"
+          bash scripts/publish-status.sh "$RUNNER_TEMP/status-out"
