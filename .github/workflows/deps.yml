@@ -1,0 +1,52 @@
+name: deps
+
+# Collects the dependency graph of every public jlt-commons and jolt-lang
+# repository (which deps.edn pins which library, at what tag or commit) and
+# commits it as deps.json to the status branch, next to status.json. The
+# dashboard's dependency page reads it from there.
+#
+# It runs on its own schedule rather than inside the canary: the canary is
+# about jolt, this is about the libraries, and a slow or failing GraphQL query
+# should not hold up the fleet status.
+on:
+  schedule:
+    # Hourly at an odd minute, away from the canary's ticks and the top of
+    # the hour.
+    - cron: "41 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deps
+  cancel-in-progress: false
+
+env:
+  TOOLS_JOLT_VERSION: ${{ vars.TOOLS_JOLT_VERSION || '0.8.28' }}
+
+jobs:
+  deps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: jlt-commons/setup-jolt@v1
+        with:
+          version: ${{ env.TOOLS_JOLT_VERSION }}
+
+      - uses: actions/cache@v6.1.0
+        with:
+          path: ~/.jolt/gitlibs
+          key: jolt-gitlibs-${{ hashFiles('deps.edn') }}
+
+      - run: |
+          dpkg -s libyaml-0-2 >/dev/null 2>&1 || { sudo apt-get update && sudo apt-get install -y libyaml-0-2; }
+
+      # The workflow token reads public repositories in any organization,
+      # GraphQL included, and pushes to this one. Private repositories are
+      # left out of the graph anyway, since the page is public.
+      - name: Collect and publish deps.json
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: jolt fleet:deps-publish "$RUNNER_TEMP/deps"

@@ -8,6 +8,7 @@
             [clojure.string :as str]
             [fleet.canary :as canary]
             [fleet.collect :as collect]
+            [fleet.deps :as deps]
             [fleet.fanout :as fanout]
             [fleet.github :as github]
             [fleet.publish :as publish]
@@ -169,6 +170,57 @@
                    (println (if (= :unchanged (:result res))
                               "status: unchanged"
                               (str "status: published (attempt " (:attempt res) ")")))))))))
+
+(def ^:private deps-usage "deps [--out FILE]   (env: GH_TOKEN)")
+
+(defn- write-deps! [gh out]
+  (let [text (refresh/json-str (deps/collect gh (now-iso)))]
+    (if out
+      (do (some-> (fs/parent out) fs/create-dirs) (spit out text))
+      (do (print text) (flush)))))
+
+(defn deps-main
+  "fleet:deps: collect the dependency graph of the jlt-commons and jolt-lang
+  repositories and write it as deps.json, to --out FILE or stdout."
+  ([args] (deps-main args (into {} (System/getenv)) {}))
+  ([args _env deps]
+   (let [out (when (= ["--out"] (take 1 args)) (second args))]
+     (if (and (seq args) (not (and out (= 2 (count args)))))
+       (usage-error deps-usage nil)
+       (guarded "deps" #(write-deps! (gh-of deps) out))))))
+
+(def ^:private deps-heartbeat-ms (* 24 3600 1000))
+
+(defn deps-unchanged?
+  "Two graphs are the same when they differ only in generated_at, unless the
+  old one is a day or more older than the new one, so generated_at keeps
+  saying when the job last ran."
+  [old new]
+  (let [t #(try (.toEpochMilli (java.time.Instant/parse (str (:generated_at %))))
+                (catch Exception _ nil))
+        a (t old) b (t new)]
+    (and (= (dissoc old :generated_at) (dissoc new :generated_at))
+         a b (< (- b a) deps-heartbeat-ms))))
+
+(defn deps-publish-main
+  "fleet:deps-publish <out-dir>: collect the graph and commit deps.json to
+  origin's status branch, leaving status.json and history.json alone."
+  ([args] (deps-publish-main args (into {} (System/getenv)) {}))
+  ([args _env deps]
+   (if (not= 1 (count args))
+     (usage-error "deps-publish <out-dir>   (env: GH_TOKEN)" nil)
+     (guarded "deps-publish"
+              #(let [gh  (gh-of deps)
+                     res (publish/publish!
+                          {:repo-dir "." :out-dir (first args) :sh publish/sh
+                           :files ["deps.json"]
+                           :unchanged? deps-unchanged?
+                           :message "status: update dependency graph"
+                           :rebuild (fn [{:keys [out-dir]}]
+                                      (write-deps! gh (str out-dir "/deps.json")))})]
+                 (println (if (= :unchanged (:result res))
+                            "deps: unchanged"
+                            (str "deps: published (attempt " (:attempt res) ")"))))))))
 
 (defn fanout-main
   "fleet:fanout [version]: dispatch every fleet project against a jolt

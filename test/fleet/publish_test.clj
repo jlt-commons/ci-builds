@@ -168,3 +168,30 @@
   (let [e (try (publish/publish! {:out-dir (str (fs/create-temp-dir))}) nil
                (catch Exception e e))]
     (is (= "rebuild is required" (ex-message e)))))
+
+(defn- pub-deps [{:keys [work out]} rebuild]
+  (publish/publish! {:repo-dir work :out-dir out :rebuild rebuild :sh publish/sh
+                     :files ["deps.json"]
+                     :unchanged? (fn [old new] (= (dissoc old :generated_at) (dissoc new :generated_at)))
+                     :message "status: update dependency graph"}))
+
+(defn- rebuild-deps [libs]
+  (fn [{:keys [out-dir]}]
+    (fs/create-dirs out-dir)
+    (write-json! (str out-dir "/deps.json")
+                 {:schema 1 :generated_at (str (System/nanoTime)) :libraries libs})))
+
+(deftest publishes-another-file-set-beside-the-status-files
+  (let [r (repo)]
+    (pub r rebuild-fixed)
+    (is (= :published (:result (pub-deps r (rebuild-deps ["a"])))))
+    (testing "the status files are left as they were"
+      (is (= ["a"] (:projects (remote-show r "status.json")))))
+    (is (= ["a"] (:libraries (remote-show r "deps.json"))))
+    (is (= "status: update dependency graph" (git (:origin r) "log" "-1" "--format=%s" "status")))
+    (testing "a rebuild differing only where unchanged? looks away is not committed"
+      (is (= :unchanged (:result (pub-deps r (rebuild-deps ["a"]))))))
+    (is (= :published (:result (pub-deps r (rebuild-deps ["a" "b"])))))
+    (testing "and a later status publish keeps deps.json"
+      (pub r (rebuild-at "2020-01-01T00:00:00Z"))
+      (is (= ["a" "b"] (:libraries (remote-show r "deps.json")))))))

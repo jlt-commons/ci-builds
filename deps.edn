@@ -15,6 +15,7 @@
                           [fleet.canary-test]
                           [fleet.cli-test]
                           [fleet.collect-test]
+                          [fleet.deps-test]
                           [fleet.fanout-test]
                           [fleet.github-test]
                           [fleet.publish-test]
@@ -24,6 +25,7 @@
                :task (let [{:keys [fail error]} (t/run-tests 'fleet.canary-test
                                                              'fleet.cli-test
                                                              'fleet.collect-test
+                                                             'fleet.deps-test
                                                              'fleet.fanout-test
                                                              'fleet.github-test
                                                              'fleet.publish-test
@@ -39,6 +41,14 @@
          fleet:report {:doc "Canary report job: open, update or close the canary issue from results/*/results.json [dir] (env: RESULT VERSIONS NIGHTLY RUN_URL GITHUB_REPOSITORY GITHUB_RUN_ID GH_TOKEN)"
                        :requires ([fleet.cli :as cli])
                        :task (System/exit (cli/report-main *command-line-args*))}
+
+         fleet:deps {:doc "Collect the jlt-commons and jolt-lang dependency graph as deps.json: [--out FILE] (env: GH_TOKEN)"
+                     :requires ([fleet.cli :as cli])
+                     :task (System/exit (cli/deps-main *command-line-args*))}
+
+         fleet:deps-publish {:doc "Collect the dependency graph and commit deps.json to origin's status branch: <out-dir> (env: GH_TOKEN)"
+                             :requires ([fleet.cli :as cli])
+                             :task (System/exit (cli/deps-publish-main *command-line-args*))}
 
          fleet:fanout {:doc "Dispatch every fleet project against a jolt version and wait: [version] (blank = latest release; env: GH_TOKEN, FLEET_JSON)"
                        :requires ([fleet.cli :as cli])
