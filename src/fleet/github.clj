@@ -52,19 +52,25 @@
 
 (defn- default-request
   "No redirects: the client would replay the Authorization header to a
-  redirect target on any host."
+  redirect target on any host. A request carries :method (:post or :patch for
+  the writes, otherwise a GET) and, for the writes, a string :body."
   [req]
-  (http/get (:url req) (assoc (dissoc req :url) :follow-redirects false)))
+  (let [send (case (:method req) :post http/post :patch http/patch http/get)]
+    (send (:url req) (assoc (dissoc req :url :method) :follow-redirects false))))
 
 (defn- request!
-  "One GET. Returns the response map, or throws ex-info on a non-2xx status."
-  [{:keys [token request]} path accept]
+  "One request, a GET unless method and body are given. Returns the response
+  map, or throws ex-info on a non-2xx status."
+  [{:keys [token request]} path accept & [method body]]
   (let [resp ((or request default-request)
-              {:url              (url-for path)
-               :throw-exceptions false
-               :headers          (cond-> {"Accept"               accept
-                                          "X-GitHub-Api-Version" "2022-11-28"}
-                                   (seq token) (assoc "Authorization" (str "Bearer " token)))})
+              (cond-> {:url              (url-for path)
+                       :throw-exceptions false
+                       :headers          (cond-> {"Accept"               accept
+                                                  "X-GitHub-Api-Version" "2022-11-28"}
+                                           (seq token) (assoc "Authorization" (str "Bearer " token))
+                                           body        (assoc "Content-Type" "application/json"))}
+                method (assoc :method method)
+                body   (assoc :body body)))
         status (:status resp)]
     (if (and (integer? status) (<= 200 status 299))
       resp
@@ -108,9 +114,11 @@
 (defn- parse [body] (json/parse-string body true))
 
 (defn client
-  "A map of fns {:get-json :get-raw :get-paginated :get-redirected-log}, each
-  taking a path (\"repos/o/r\", \"/repos/o/r\" or a full URL). opts: :token, :request (a fn
-  from {:url :headers :throw-exceptions} to {:status :headers :body})."
+  "A map of fns {:get-json :get-raw :get-paginated :get-redirected-log
+  :post-json :patch-json}, each taking a path (\"repos/o/r\", \"/repos/o/r\" or a full URL). opts: :token, :request (a fn
+  from {:url :headers :throw-exceptions, plus :method and :body on writes} to
+  {:status :headers :body}). :post-json and :patch-json take a path and a map
+  to send as JSON, and return the parsed reply."
   [opts]
   {:get-json      (fn [path] (parse (:body (request! opts path json-accept))))
    :get-raw       (fn [path] (:body (request! opts path "application/vnd.github.raw+json")))
@@ -122,7 +130,11 @@
                         (if-let [nxt (next-link (header (:headers resp) "link"))]
                           (recur nxt acc)
                           acc))))
-   :get-redirected-log (fn [path] (redirected-log! opts path))})
+   :get-redirected-log (fn [path] (redirected-log! opts path))
+   :post-json     (fn [path data]
+                    (parse (:body (request! opts path json-accept :post (json/generate-string data)))))
+   :patch-json    (fn [path data]
+                    (parse (:body (request! opts path json-accept :patch (json/generate-string data)))))})
 
 (defn env-client
   "A client with the token from GH_TOKEN (none when unset)."

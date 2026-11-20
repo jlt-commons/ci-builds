@@ -12,6 +12,7 @@
 
  :tasks {test {:doc "Run every fleet.*-test namespace; exit 1 on any failure or error"
                :requires ([clojure.test :as t]
+                          [fleet.canary-test]
                           [fleet.cli-test]
                           [fleet.collect-test]
                           [fleet.fanout-test]
@@ -20,7 +21,8 @@
                           [fleet.refresh-test]
                           [fleet.status-test]
                           [fleet.version-test])
-               :task (let [{:keys [fail error]} (t/run-tests 'fleet.cli-test
+               :task (let [{:keys [fail error]} (t/run-tests 'fleet.canary-test
+                                                             'fleet.cli-test
                                                              'fleet.collect-test
                                                              'fleet.fanout-test
                                                              'fleet.github-test
@@ -29,6 +31,14 @@
                                                              'fleet.status-test
                                                              'fleet.version-test)]
                        (when (pos? (+ fail error)) (System/exit 1)))}
+
+         fleet:plan {:doc "Canary plan job: decide what to test (env: REQUESTED EVENT INTERVAL_HOURS NIGHTLY_MAX_AGE_HOURS GITHUB_REPOSITORY GH_TOKEN GITHUB_OUTPUT); --final combines the gates (env: INTERVAL_OK ALREADY_GREEN REASON KEY)"
+                     :requires ([fleet.cli :as cli])
+                     :task (System/exit (cli/plan-main *command-line-args*))}
+
+         fleet:report {:doc "Canary report job: open, update or close the canary issue from results/*/results.json [dir] (env: RESULT VERSIONS NIGHTLY RUN_URL GITHUB_REPOSITORY GITHUB_RUN_ID GH_TOKEN)"
+                       :requires ([fleet.cli :as cli])
+                       :task (System/exit (cli/report-main *command-line-args*))}
 
          fleet:fanout {:doc "Dispatch every fleet project against a jolt version and wait: [version] (blank = latest release; env: GH_TOKEN, FLEET_JSON)"
                        :requires ([fleet.cli :as cli])

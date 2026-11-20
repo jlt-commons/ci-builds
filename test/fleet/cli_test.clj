@@ -159,3 +159,84 @@
              "FLEET_JSON" (write! d "fleet.json" "{\"projects\":[],\"excluded\":{}}")}
         r   (run #(cli/refresh-main [(str d "/out")] env {:gh gh}))]
     (is (= 0 (:rc r)))))
+
+;; Task 11: fleet:plan and fleet:report.
+
+(defn- canary-gh
+  "A client answering the jolt-lang reads, and recording issue writes."
+  [writes & {:keys [issues] :or {issues []}}]
+  (let [answers {"repos/jolt-lang/jolt/releases/latest" {:tag_name "v0.8.27"}
+                 "repos/jolt-lang/jolt/releases/tags/vnightly" {:published_at "2026-11-19T21:30:15Z"}
+                 "repos/jolt-lang/jolt/git/refs/tags/vnightly" {:object {:sha "dd3c4a4b00"}}
+                 "repos/jolt-lang/jolt/git/refs/tags/v0.8.27" {:object {:sha "9b768395ff"}}}]
+    {:get-json      (fn [p] (or (get answers p) (throw (ex-info "unexpected" {:path p}))))
+     :get-paginated (fn [_] issues)
+     :post-json     (fn [p d] (swap! writes conj [:post p d]) {:number 1})
+     :patch-json    (fn [p d] (swap! writes conj [:patch p d]) {})}))
+
+(defn- kv [text] (into {} (map #(str/split % #"=" 2)) (str/split-lines text)))
+
+(deftest plan-writes-the-job-outputs-to-github-output
+  (let [d   (tmp-dir)
+        out (str d "/out")
+        r   (run #(cli/plan-main [] {"EVENT" "workflow_dispatch" "REQUESTED" "" "GITHUB_OUTPUT" out
+                                     "GITHUB_REPOSITORY" "o/ci"}
+                                 {:gh (canary-gh (atom []))}))
+        o   (kv (slurp out))]
+    (is (= 0 (:rc r)))
+    (is (= "0.8.27" (o "latest")))
+    (is (= "true" (o "proceed")))
+    (is (= "manual run, gates skipped" (o "reason")))
+    (is (= #{"latest" "versions" "nightly" "nightly_json" "key" "proceed" "reason"} (set (keys o))))
+    (is (str/starts-with? (o "versions") "[\"0.8.27\""))))
+
+(deftest plan-rejects-a-junk-interval-and-writes-nothing
+  (let [d   (tmp-dir)
+        out (str d "/out")
+        r   (run #(cli/plan-main [] {"EVENT" "schedule" "INTERVAL_HOURS" "soon" "GITHUB_OUTPUT" out}
+                                 {:gh (canary-gh (atom []))}))]
+    (is (= 1 (:rc r)))
+    (is (str/includes? (:err r) "CANARY_INTERVAL_HOURS is not a whole number"))
+    (is (not (fs/exists? out)))))
+
+(deftest plan-final-writes-proceed
+  (let [d   (tmp-dir)
+        out (str d "/out")
+        r   (run #(cli/plan-main ["--final"] {"INTERVAL_OK" "true" "ALREADY_GREEN" "true" "REASON" "due"
+                                              "KEY" "canary-green-0.8.27" "GITHUB_OUTPUT" out} {}))]
+    (is (= 0 (:rc r)))
+    (is (= "proceed=false\n" (slurp out)))
+    (is (str/includes? (:out r) "SKIPPING: canary-green-0.8.27 already passed"))))
+
+(deftest plan-usage-error
+  (is (= 2 (:rc (run #(cli/plan-main ["--nope"] {} {}))))))
+
+(deftest report-reads-every-results-file-and-opens-an-issue-for-a-failure
+  (let [d      (tmp-dir)
+        _      (fs/create-dirs (str d "/results/results-0.8.27"))
+        _      (fs/create-dirs (str d "/results/results-nightly"))
+        _      (spit (str d "/results/results-0.8.27/results.json")
+                     "{\"requested\":\"0.8.27\",\"projects\":[{\"name\":\"a\",\"result\":\"pass\"}]}")
+        _      (spit (str d "/results/results-nightly/results.json")
+                     "{\"requested\":\"nightly\",\"projects\":[{\"name\":\"a\",\"result\":\"fail\"}]}")
+        writes (atom [])
+        r      (run #(cli/report-main [(str d "/results")]
+                                      {"GITHUB_REPOSITORY" "o/ci" "VERSIONS" "[\"0.8.27\",\"nightly\"]"
+                                       "RUN_URL" "https://x/run/1" "RESULT" "failure" "GITHUB_RUN_ID" "1"}
+                                      {:gh (canary-gh writes)}))]
+    (is (= 0 (:rc r)))
+    (is (= 1 (count @writes)))
+    (is (str/includes? (:body (nth (first @writes) 2)) "**Failing:** a (nightly)"))))
+
+(deftest report-with-no-results-dir-and-a-green-fleet-does-nothing
+  (let [writes (atom [])
+        r      (run #(cli/report-main [(str (tmp-dir) "/results")]
+                                      {"GITHUB_REPOSITORY" "o/ci" "VERSIONS" "[]" "RUN_URL" "u" "RESULT" "success"}
+                                      {:gh (canary-gh writes)}))]
+    (is (= 0 (:rc r)))
+    (is (= [] @writes))))
+
+(deftest report-needs-its-environment
+  (let [r (run #(cli/report-main [] {} {}))]
+    (is (= 2 (:rc r)))
+    (is (str/includes? (:err r) "GITHUB_REPOSITORY is required"))))

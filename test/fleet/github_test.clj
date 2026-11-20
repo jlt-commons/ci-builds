@@ -1,5 +1,6 @@
 (ns fleet.github-test
-  (:require [clojure.string :as str]
+  (:require [cheshire.core :as json]
+            [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]
             [fleet.github :as gh]))
 
@@ -176,3 +177,47 @@
                                          blob {:status 403 :headers {} :body "expired"}} (atom []))})
         e    (try ((:get-redirected-log c) "l") nil (catch Exception e e))]
     (is (= 403 (gh/status-of e)))))
+
+;; Task 11: POST and PATCH for the canary issue, under the same host guard.
+
+(deftest post-json-sends-method-json-body-and-auth-and-parses-the-reply
+  (let [seen (atom [])
+        c    (gh/client {:token "tok"
+                         :request (stub {"https://api.github.com/repos/o/r/issues"
+                                         {:status 201 :headers {} :body "{\"number\":7}"}}
+                                        seen)})]
+    (is (= {:number 7} ((:post-json c) "repos/o/r/issues" {:title "t" :body "b\nline"})))
+    (let [req (first @seen)]
+      (is (= :post (:method req)))
+      (is (= {:title "t" :body "b\nline"} (json/parse-string (:body req) true)))
+      (is (= "Bearer tok" (get-in req [:headers "Authorization"])))
+      (is (= "application/json" (get-in req [:headers "Content-Type"])))
+      (is (= false (:throw-exceptions req))))))
+
+(deftest patch-json-sends-patch
+  (let [seen (atom [])
+        c    (gh/client {:request (stub {"https://api.github.com/repos/o/r/issues/7"
+                                         {:status 200 :headers {} :body "{\"state\":\"closed\"}"}}
+                                        seen)})]
+    (is (= {:state "closed"} ((:patch-json c) "repos/o/r/issues/7" {:state "closed"})))
+    (is (= :patch (:method (first @seen))))))
+
+(deftest writes-throw-ex-info-with-status-on-non-2xx
+  (let [c (gh/client {:request (stub {"https://api.github.com/x" {:status 403 :headers {} :body "no"}} (atom []))})]
+    (doseq [f [:post-json :patch-json]]
+      (is (= 403 (gh/status-of (try ((f c) "x" {}) nil (catch Exception e e))))))))
+
+(deftest writes-refuse-a-foreign-host-and-send-nothing
+  (let [seen (atom [])
+        c    (gh/client {:token "tok" :request (stub {} seen)})]
+    (doseq [f [:post-json :patch-json]
+            url ["https://evil.example/repos/o/r/issues" "https://api.github.com.evil.example/x"]]
+      (is (foreign-host? (try ((f c) url {}) nil (catch Exception e e)))))
+    (is (= [] @seen))))
+
+(deftest reads-still-carry-no-method-or-body
+  (let [seen (atom [])
+        c    (gh/client {:request (stub {"https://api.github.com/a" {:status 200 :headers {} :body "{}"}} seen)})]
+    ((:get-json c) "a")
+    (is (nil? (:body (first @seen))))
+    (is (contains? #{nil :get} (:method (first @seen))))))

@@ -3,8 +3,10 @@
   arguments (and, where it reads the environment, an env map) and returns an
   exit code; the task wrapper in deps.edn passes it to System/exit. Failures
   print one line to stderr, exit 1, and write no files. Usage errors exit 2."
-  (:require [cheshire.core :as json]
+  (:require [babashka.fs :as fs]
+            [cheshire.core :as json]
             [clojure.string :as str]
+            [fleet.canary :as canary]
             [fleet.collect :as collect]
             [fleet.fanout :as fanout]
             [fleet.github :as github]
@@ -184,3 +186,86 @@
                                     :projects (:projects (load-fleet env))
                                     :gh       (gh-of deps)
                                     :env      (fn [k] (get env k))}))))))
+
+(defn- append-output!
+  "Append text to the file GITHUB_OUTPUT names, or print it when unset."
+  [env text]
+  (if-let [path (not-empty (get env "GITHUB_OUTPUT"))]
+    (spit path text :append true)
+    (print text))
+  (flush))
+
+(defn- plan!
+  "The decide step: read GitHub, work out the plan, write the job outputs."
+  [env deps]
+  (let [gh        (gh-of deps)
+        requested (or (get env "REQUESTED") "")
+        interval  (canary/parse-hours (get env "INTERVAL_HOURS") 0 "CANARY_INTERVAL_HOURS")
+        max-age   (canary/parse-hours (get env "NIGHTLY_MAX_AGE_HOURS") 48 "NIGHTLY_MAX_AGE_HOURS")
+        event     (get env "EVENT")
+        repo      (get env "GITHUB_REPOSITORY")
+        in        (merge {:requested      requested
+                          :event          event
+                          :interval-hours interval
+                          :max-age-hours  max-age
+                          :now            (now-iso)}
+                         (canary/gather gh requested))
+        in        (cond-> in
+                    (canary/needs-last-built-at? in) (assoc :last-built-at (canary/last-built-at gh repo)))
+        result    (canary/plan in)]
+    (println (if (str/blank? requested)
+               (str "testing " (json/generate-string (:versions result)))
+               (str "manual dispatch, testing " requested " only")))
+    (println (:nightly result))
+    (append-output! env (canary/outputs-text result))))
+
+(defn- final!
+  "The final-decision step: both gates into the job's `proceed`."
+  [env]
+  (let [{:keys [proceed log]} (canary/final-decision {:interval-ok   (get env "INTERVAL_OK")
+                                                      :already-green (get env "ALREADY_GREEN")
+                                                      :reason        (get env "REASON")
+                                                      :key           (get env "KEY")})]
+    (append-output! env (str "proceed=" proceed "\n"))
+    (println log)))
+
+(defn plan-main
+  "fleet:plan: the canary plan job's decide step. With --final, the step
+  after the change-gate cache lookup. Env for the decide step: REQUESTED,
+  EVENT, INTERVAL_HOURS, NIGHTLY_MAX_AGE_HOURS, GITHUB_REPOSITORY, GH_TOKEN,
+  GITHUB_OUTPUT. Env for --final: INTERVAL_OK, ALREADY_GREEN, REASON, KEY."
+  ([args] (plan-main args (into {} (System/getenv)) {}))
+  ([args env deps]
+   (case (vec args)
+     []          (guarded "plan" #(plan! env deps))
+     ["--final"] (guarded "plan" #(final! env))
+     (usage-error "plan [--final]" nil))))
+
+(defn- read-results
+  "Every results.json under dir, parsed. A missing dir is no results."
+  [dir]
+  (if (fs/exists? dir)
+    (mapv #(refresh/read-json-file (str %) false)
+          (sort (map str (fs/glob dir "**/results.json"))))
+    []))
+
+(defn report-main
+  "fleet:report [results-dir]: open, update or close the canary issue from the
+  merged results.json files (default dir: results). Env: RESULT (the fleet
+  job's result), VERSIONS, NIGHTLY, RUN_URL, GITHUB_REPOSITORY,
+  GITHUB_RUN_ID, GH_TOKEN."
+  ([args] (report-main args (into {} (System/getenv)) {}))
+  ([args env deps]
+   (if (> (count args) 1)
+     (usage-error "report [results-dir]" nil)
+     (if-let [v (require-env env ["GITHUB_REPOSITORY" "VERSIONS" "RUN_URL"])]
+       (do (err (str "report: " v " is required")) (usage-error "report [results-dir]" nil))
+       (guarded "report"
+                #(canary/report! {:gh           (gh-of deps)
+                                  :repo         (get env "GITHUB_REPOSITORY")
+                                  :results      (read-results (or (first args) "results"))
+                                  :fleet-result (get env "RESULT")
+                                  :versions     (get env "VERSIONS")
+                                  :nightly      (get env "NIGHTLY")
+                                  :run-url      (get env "RUN_URL")
+                                  :run-id       (get env "GITHUB_RUN_ID")}))))))
