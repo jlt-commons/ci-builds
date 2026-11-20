@@ -27,4 +27,8 @@ jobs:
         with:
           path: ~/.jolt/gitlibs
           key: jolt-gitlibs-${{ hashFiles('deps.edn') }}
+      # jolt.yaml loads libyaml. Install it when the runner image lacks it, so
+      # an image change cannot turn this red for a reason unrelated to the tree.
+      - run: |
+          dpkg -s libyaml-0-2 >/dev/null 2>&1 || { sudo apt-get update && sudo apt-get install -y libyaml-0-2; }
       - run: jolt test

@@ -49,9 +49,10 @@ on:
         required: false
         default: ""
 
+# Read only. The report job's App token carries issues: write, and the status
+# job's own block adds contents: write, so nothing else holds either.
 permissions:
   contents: read
-  issues: write
   actions: read
 
 env:
@@ -92,7 +93,8 @@ jobs:
 
       # jolt.yaml loads libyaml, which the runner image carries today. Say so
       # explicitly so an image change cannot break the tools silently.
-      - run: sudo apt-get install -y libyaml-0-2
+      - run: |
+          dpkg -s libyaml-0-2 >/dev/null 2>&1 || { sudo apt-get update && sudo apt-get install -y libyaml-0-2; }
 
       # Latest is resolved on every event, a manual dispatch included, because
       # the status page shows what latest is whatever was asked for.
@@ -213,7 +215,8 @@ jobs:
 
       # jolt.yaml loads libyaml, which the runner image carries today. Say so
       # explicitly so an image change cannot break the tools silently.
-      - run: sudo apt-get install -y libyaml-0-2
+      - run: |
+          dpkg -s libyaml-0-2 >/dev/null 2>&1 || { sudo apt-get update && sudo apt-get install -y libyaml-0-2; }
 
       - name: Mint an installation token
         id: token
@@ -222,12 +225,18 @@ jobs:
           client-id: ${{ secrets.APP_CLIENT_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: jlt-commons
+          # Cross-repo reads only: each project's ci.yml, runs and jobs.
+          permission-contents: read
+          permission-actions: read
 
       # Reusable-workflow artifacts belong to this (the caller's) run. A gated
       # tick has none, so the step is skipped there rather than trusting the
       # action to treat "no match" as success; the script copes with no results.
       - uses: actions/download-artifact@v8
         if: needs.fleet.result != 'skipped'
+        # An artifact that cannot be fetched leaves its project out of this
+        # run's results. It must not stop the status or the issue.
+        continue-on-error: true
         with:
           pattern: results-*
           path: results
@@ -251,7 +260,8 @@ jobs:
 
   report:
     needs: [plan, fleet]
-    if: always() && needs.plan.outputs.proceed == 'true'
+    # !cancelled() and not always(): a cancelled run must not open an issue.
+    if: ${{ !cancelled() && needs.plan.outputs.proceed == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -267,7 +277,8 @@ jobs:
 
       # jolt.yaml loads libyaml, which the runner image carries today. Say so
       # explicitly so an image change cannot break the tools silently.
-      - run: sudo apt-get install -y libyaml-0-2
+      - run: |
+          dpkg -s libyaml-0-2 >/dev/null 2>&1 || { sudo apt-get update && sudo apt-get install -y libyaml-0-2; }
 
       - name: Mint an installation token
         id: token
@@ -277,11 +288,18 @@ jobs:
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: jlt-commons
           repositories: ci-builds
+          # Opens, comments on and closes the canary issue, and reads this run's
+          # job names for the issue text.
+          permission-issues: write
+          permission-actions: read
 
       # needs.fleet.outputs.failed holds one matrix leg's value, so the verdict
       # is read from every leg's results file instead.
       - uses: actions/download-artifact@v8
         if: needs.fleet.result != 'skipped'
+        # An artifact that cannot be fetched leaves its project out of this
+        # run's results. It must not stop the status or the issue.
+        continue-on-error: true
         with:
           pattern: results-*
           path: results

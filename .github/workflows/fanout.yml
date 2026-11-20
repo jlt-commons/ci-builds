@@ -92,7 +92,8 @@ jobs:
 
       # jolt.yaml loads libyaml, which the runner image carries today. Say so
       # explicitly so an image change cannot break the tools silently.
-      - run: sudo apt-get install -y libyaml-0-2
+      - run: |
+          dpkg -s libyaml-0-2 >/dev/null 2>&1 || { sudo apt-get update && sudo apt-get install -y libyaml-0-2; }
 
       # Mints a token scoped to the App's seven repositories, valid one hour.
       # Never a PAT: a PAT would act as whoever created it, and any collaborator
@@ -146,7 +147,8 @@ jobs:
           path: ~/.jolt/gitlibs
           key: jolt-gitlibs-${{ hashFiles('deps.edn') }}
 
-      - run: sudo apt-get install -y libyaml-0-2
+      - run: |
+          dpkg -s libyaml-0-2 >/dev/null 2>&1 || { sudo apt-get update && sudo apt-get install -y libyaml-0-2; }
 
       - name: Mint an installation token
         id: token
@@ -155,8 +157,14 @@ jobs:
           client-id: ${{ secrets.APP_CLIENT_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: jlt-commons
+          # Cross-repo reads only: each project's ci.yml, runs and jobs.
+          permission-contents: read
+          permission-actions: read
 
       - uses: actions/download-artifact@v8
+        # An artifact that cannot be fetched leaves its project out of the
+        # results. It must not stop the publish.
+        continue-on-error: true
         with:
           pattern: results-*
           path: results
