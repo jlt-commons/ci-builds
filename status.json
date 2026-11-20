@@ -1,6 +1,6 @@
 {
-  "canary_run" : "https://github.com/jlt-commons/ci-builds/actions/runs/44676297702",
-  "generated_at" : "2026-11-20T04:50:15Z",
+  "canary_run" : "https://github.com/jlt-commons/ci-builds/actions/runs/44682301915",
+  "generated_at" : "2026-11-20T05:42:20Z",
   "jolt" : {
     "latest" : {
       "version" : "0.8.27"
@@ -15,58 +15,10 @@
     "cells" : {
       "latest" : {
         "failed_step" : null,
-        "finished_at" : null,
-        "installed" : null,
-        "result" : "dispatch-failed",
-        "run_url" : null,
-        "version" : "0.8.27"
-      },
-      "nightly" : {
-        "result" : "not-run"
-      },
-      "pin" : {
-        "failed_step" : null,
-        "finished_at" : "2026-11-05T15:22:44Z",
-        "installed" : null,
-        "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/raylib-ios-demo/actions/runs/42053797566",
-        "version" : "0.8.24"
-      }
-    },
-    "name" : "raylib-ios-demo",
-    "pin" : "0.8.24"
-  }, {
-    "cells" : {
-      "latest" : {
-        "failed_step" : null,
-        "finished_at" : null,
-        "installed" : null,
-        "result" : "dispatch-failed",
-        "run_url" : null,
-        "version" : "0.8.27"
-      },
-      "nightly" : {
-        "result" : "not-run"
-      },
-      "pin" : {
-        "failed_step" : null,
-        "finished_at" : "2026-11-08T13:03:40Z",
-        "installed" : null,
-        "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/raylib-jolt-demo/actions/runs/42483053434",
-        "version" : "0.8.24"
-      }
-    },
-    "name" : "raylib-jolt-demo",
-    "pin" : "0.8.24"
-  }, {
-    "cells" : {
-      "latest" : {
-        "failed_step" : null,
-        "finished_at" : "2026-11-20T04:44:28Z",
+        "finished_at" : "2026-11-20T05:38:52Z",
         "installed" : "0.8.27",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/docs-engine/actions/runs/44676349702",
+        "run_url" : "https://github.com/jlt-commons/docs-engine/actions/runs/44682357201",
         "version" : "0.8.27"
       },
       "nightly" : {
@@ -87,10 +39,10 @@
     "cells" : {
       "latest" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-20T04:44:27Z",
+        "finished_at" : "2026-11-20T05:38:51Z",
         "installed" : "0.8.27",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/ebb/actions/runs/44676346751",
+        "run_url" : "https://github.com/jlt-commons/ebb/actions/runs/44682352815",
         "version" : "0.8.27"
       },
       "nightly" : {
@@ -111,10 +63,10 @@
     "cells" : {
       "latest" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-20T04:47:13Z",
+        "finished_at" : "2026-11-20T05:41:43Z",
         "installed" : "0.8.27",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/ensemble/actions/runs/44676343631",
+        "run_url" : "https://github.com/jlt-commons/ensemble/actions/runs/44682349772",
         "version" : "0.8.27"
       },
       "nightly" : {
@@ -135,10 +87,10 @@
     "cells" : {
       "latest" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-20T04:44:20Z",
+        "finished_at" : "2026-11-20T05:38:45Z",
         "installed" : "0.8.27",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/glitter/actions/runs/44676320771",
+        "run_url" : "https://github.com/jlt-commons/glitter/actions/runs/44682325379",
         "version" : "0.8.27"
       },
       "nightly" : {
@@ -164,10 +116,10 @@
     "cells" : {
       "latest" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-20T04:49:56Z",
+        "finished_at" : "2026-11-20T05:42:05Z",
         "installed" : "0.8.27",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/glitter-gl/actions/runs/44676324201",
+        "run_url" : "https://github.com/jlt-commons/glitter-gl/actions/runs/44682329022",
         "version" : "0.8.27"
       },
       "nightly" : {
@@ -193,10 +145,10 @@
     "cells" : {
       "latest" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-20T04:44:22Z",
+        "finished_at" : "2026-11-20T05:38:47Z",
         "installed" : "0.8.27",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/glitter-uikit/actions/runs/44676327431",
+        "run_url" : "https://github.com/jlt-commons/glitter-uikit/actions/runs/44682332396",
         "version" : "0.8.27"
       },
       "nightly" : {
@@ -222,10 +174,10 @@
     "cells" : {
       "latest" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-20T04:44:23Z",
+        "finished_at" : "2026-11-20T05:39:38Z",
         "installed" : "0.8.27",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/raygui-jlt/actions/runs/44676330632",
+        "run_url" : "https://github.com/jlt-commons/raygui-jlt/actions/runs/44682336069",
         "version" : "0.8.27"
       },
       "nightly" : {
@@ -251,10 +203,10 @@
     "cells" : {
       "latest" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-20T04:44:26Z",
+        "finished_at" : "2026-11-20T05:38:50Z",
         "installed" : "0.8.27",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/raylib-android/actions/runs/44676340408",
+        "run_url" : "https://github.com/jlt-commons/raylib-android/actions/runs/44682346387",
         "version" : "0.8.27"
       },
       "nightly" : {
@@ -280,10 +232,10 @@
     "cells" : {
       "latest" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-20T04:44:24Z",
+        "finished_at" : "2026-11-20T05:39:14Z",
         "installed" : "0.8.27",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/raylib-ios/actions/runs/44676336918",
+        "run_url" : "https://github.com/jlt-commons/raylib-ios/actions/runs/44682343098",
         "version" : "0.8.27"
       },
       "nightly" : {
@@ -309,10 +261,10 @@
     "cells" : {
       "latest" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-20T04:45:09Z",
+        "finished_at" : "2026-11-20T05:39:39Z",
         "installed" : "0.8.27",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/raylib-jlt/actions/runs/44676333558",
+        "run_url" : "https://github.com/jlt-commons/raylib-jlt/actions/runs/44682339582",
         "version" : "0.8.27"
       },
       "nightly" : {
@@ -393,6 +345,12 @@
   }, {
     "name" : "graviton",
     "reason" : "no ci.yml"
+  }, {
+    "name" : "raylib-jolt-demo",
+    "reason" : "excluded: waiting on the jlt-commons-ci App installation"
+  }, {
+    "name" : "raylib-ios-demo",
+    "reason" : "excluded: waiting on the jlt-commons-ci App installation"
   }, {
     "name" : "ents",
     "reason" : "no ci.yml"
