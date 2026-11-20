@@ -55,6 +55,14 @@
     (is (str/starts-with? (:nightly p)
                           "nightly SKIPPED: published 2026-11-17T00:00:00Z, 84h old, limit 48h. "))))
 
+(deftest nightly-with-an-unresolved-tag-is-skipped
+  (doseq [sha [nil "" "  "]]
+    (let [p (plan :nightly-release {:published-at "2026-11-19T21:30:15Z" :sha sha})]
+      (is (= ["0.8.27"] (:versions p)))
+      (is (nil? (:nightly-json p)))
+      (is (= "nightly SKIPPED: could not resolve the vnightly tag" (:nightly p)))
+      (is (= "canary-green-0.8.27" (:key p))))))
+
 (deftest nightly-at-exactly-the-limit-still-runs
   (is (= ["0.8.27" "nightly"]
          (:versions (plan :nightly-release {:published-at "2026-11-18T12:00:00Z" :sha "aaaaaaaabbbb"})))))
@@ -172,13 +180,33 @@
         gh   (stub-gh {runs-path {:workflow_runs [{:id 3 :updated_at "2026-11-20T11:00:00Z"}
                                                   {:id 2 :updated_at "2026-11-20T08:00:00Z"}
                                                   {:id 1 :updated_at "2026-11-20T05:00:00Z"}]}
-                       "repos/o/ci/actions/runs/3/jobs?per_page=100" {:jobs [{:name "plan"} {:name "status"}]}
-                       "repos/o/ci/actions/runs/2/jobs?per_page=100" {:jobs [{:name "plan"} {:name "jolt 0.8.27 / fan-out"}]}
-                       "repos/o/ci/actions/runs/1/jobs?per_page=100" {:jobs [{:name "jolt 0.8.26"}]}}
+                       "repos/o/ci/actions/runs/3/jobs?per_page=100" {:jobs [{:name "plan" :conclusion "success"}
+                                                                                    {:name "jolt ${{ matrix.version }}" :conclusion "skipped"}
+                                                                                    {:name "status" :conclusion "success"}]}
+                       "repos/o/ci/actions/runs/2/jobs?per_page=100" {:jobs [{:name "plan"} {:name "jolt 0.8.27 / fan-out" :conclusion "success"}]}
+                       "repos/o/ci/actions/runs/1/jobs?per_page=100" {:jobs [{:name "jolt 0.8.26" :conclusion "success"}]}}
                       seen)]
     (is (= "2026-11-20T08:00:00Z" (canary/last-built-at gh "o/ci")))
     (is (= [runs-path "repos/o/ci/actions/runs/3/jobs?per_page=100" "repos/o/ci/actions/runs/2/jobs?per_page=100"]
            @seen))))
+
+;; R28: a gated tick lists its matrix job, skipped, under the literal name
+;; "jolt ${{ matrix.version }}". It must not reset the interval clock.
+(deftest a-gated-tick-does-not-reset-the-interval-clock
+  (let [gh (stub-gh {runs-path {:workflow_runs [{:id 3 :updated_at "2026-11-20T11:45:00Z"}
+                                                {:id 2 :updated_at "2026-11-20T09:00:00Z"}]}
+                     "repos/o/ci/actions/runs/3/jobs?per_page=100"
+                     {:jobs [{:name "plan" :conclusion "success"}
+                             {:name "jolt ${{ matrix.version }}" :conclusion "skipped"}
+                             {:name "status" :conclusion "success"}]}
+                     "repos/o/ci/actions/runs/2/jobs?per_page=100"
+                     {:jobs [{:name "jolt 0.8.27 / fan-out" :conclusion "success"}]}}
+                    (atom []))
+        last (canary/last-built-at gh "o/ci")
+        p    (plan :interval-hours 2 :last-built-at last)]
+    (is (= "2026-11-20T09:00:00Z" last))
+    (is (true? (:proceed p)))
+    (is (= "due" (:reason p)))))
 
 (deftest last-built-at-is-nil-when-no-run-built-anything
   (let [gh (stub-gh {runs-path {:workflow_runs [{:id 3 :updated_at "x"}]}
@@ -189,7 +217,7 @@
 (deftest last-built-at-ignores-a-job-lookup-that-fails
   (let [gh (stub-gh {runs-path {:workflow_runs [{:id 3 :updated_at "A"} {:id 2 :updated_at "B"}]}
                      "repos/o/ci/actions/runs/3/jobs?per_page=100" (ex-info "502" {:status 502})
-                     "repos/o/ci/actions/runs/2/jobs?per_page=100" {:jobs [{:name "jolt 1"}]}}
+                     "repos/o/ci/actions/runs/2/jobs?per_page=100" {:jobs [{:name "jolt 1" :conclusion "failure"}]}}
                     (atom []))]
     (is (= "B" (canary/last-built-at gh "o/ci")))))
 

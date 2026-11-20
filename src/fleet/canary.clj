@@ -79,15 +79,22 @@
   [{:keys [nightly-release release-shas versions max-age-hours now]}]
   (let [pub (:published-at nightly-release)
         sha (or (:sha nightly-release) "")]
-    (if (str/blank? pub)
+    (cond
+      (str/blank? pub)
       {:nightly "nightly SKIPPED: no vnightly release found"}
+
+      ;; The release exists but its tag does not resolve (R30). A row with no
+      ;; commit cannot be checked against the releases, so it is not run.
+      (str/blank? sha)
+      {:nightly "nightly SKIPPED: could not resolve the vnightly tag"}
+
+      :else
       (let [age (or (hours-between pub now) 0)]
         (if (> age max-age-hours)
           {:nightly (str "nightly SKIPPED: published " pub ", " age "h old, limit " max-age-hours
                          "h. jolt's publish-nightly is gated on its downstream library suites, "
                          "so a lagging library withholds new builds while the old one stays installable")}
-          (if-let [dupe (when-not (str/blank? sha)
-                          (some #(when (= sha (get release-shas %)) %) versions))]
+          (if-let [dupe (some #(when (= sha (get release-shas %)) %) versions)]
             {:nightly (str "nightly SKIPPED: vnightly is " (short-sha sha) ", the same commit as "
                            dupe ", so the row would rebuild what " dupe " already covers")}
             {:nightly (str "nightly published " pub ", " age "h old, at " (short-sha sha))
@@ -223,7 +230,8 @@
   a run whose conclusion is success (plan and status succeeded, the matrix
   skipped), so counting runs would reset the clock every tick and an interval
   above 1 would never come due. The tell is a `jolt <version>` job, which
-  exists only when the matrix ran. Looks at the 12 newest completed runs. A
+  exists only when the matrix ran, and a gated tick lists that job as
+  skipped, so a job counts only if it is not skipped (R28). Looks at the 12 newest completed runs. A
   failed lookup is skipped with a warning and, if nothing is found, reads as
   due: the safe direction is to run."
   [gh repo]
@@ -232,7 +240,9 @@
     (some (fn [{:keys [id updated_at]}]
             (let [jobs (try (:jobs ((:get-json gh) (str "repos/" repo "/actions/runs/" id "/jobs?per_page=100")))
                             (catch Exception e (warn "job list failed for run" id (ex-message e)) nil))]
-              (when (some #(str/starts-with? (str (:name %)) "jolt ") jobs)
+              (when (some #(and (str/starts-with? (str (:name %)) "jolt ")
+                                (not= "skipped" (:conclusion %)))
+                          jobs)
                 updated_at)))
           runs)))
 

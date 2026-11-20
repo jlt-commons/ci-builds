@@ -190,15 +190,6 @@
     (is (= #{"latest" "versions" "nightly" "nightly_json" "key" "proceed" "reason"} (set (keys o))))
     (is (str/starts-with? (o "versions") "[\"0.8.27\""))))
 
-(deftest plan-rejects-a-junk-interval-and-writes-nothing
-  (let [d   (tmp-dir)
-        out (str d "/out")
-        r   (run #(cli/plan-main [] {"EVENT" "schedule" "INTERVAL_HOURS" "soon" "GITHUB_OUTPUT" out}
-                                 {:gh (canary-gh (atom []))}))]
-    (is (= 1 (:rc r)))
-    (is (str/includes? (:err r) "CANARY_INTERVAL_HOURS is not a whole number"))
-    (is (not (fs/exists? out)))))
-
 (deftest plan-final-writes-proceed
   (let [d   (tmp-dir)
         out (str d "/out")
@@ -240,3 +231,29 @@
   (let [r (run #(cli/report-main [] {} {}))]
     (is (= 2 (:rc r)))
     (is (str/includes? (:err r) "GITHUB_REPOSITORY is required"))))
+
+;; R29: a junk variable warns and falls back, never stops the plan.
+
+(defn- plan-out [env]
+  (let [d (tmp-dir) out (str d "/out")
+        r (run #(cli/plan-main [] (assoc env "GITHUB_OUTPUT" out "GITHUB_REPOSITORY" "o/ci")
+                               {:gh (canary-gh (atom []))}))]
+    (assoc r :o (when (fs/exists? out) (kv (slurp out))))))
+
+(deftest plan-manual-dispatch-ignores-a-junk-interval
+  (let [r (plan-out {"EVENT" "workflow_dispatch" "INTERVAL_HOURS" "soon"})]
+    (is (= 0 (:rc r)))
+    (is (= "true" (get-in r [:o "proceed"])))
+    (is (not (str/includes? (:out r) "::warning::")))))
+
+(deftest plan-schedule-with-a-junk-interval-warns-and-uses-zero
+  (let [r (plan-out {"EVENT" "schedule" "INTERVAL_HOURS" "soon"})]
+    (is (= 0 (:rc r)))
+    (is (str/includes? (:out r) "::warning::CANARY_INTERVAL_HOURS is not a whole number of hours: soon, using 0"))
+    (is (= "no interval gate" (get-in r [:o "reason"])))))
+
+(deftest plan-junk-max-age-warns-and-uses-48
+  (let [r (plan-out {"EVENT" "workflow_dispatch" "NIGHTLY_MAX_AGE_HOURS" "x"})]
+    (is (= 0 (:rc r)))
+    (is (str/includes? (:out r) "::warning::NIGHTLY_MAX_AGE_HOURS is not a whole number of hours: x, using 48"))
+    (is (= "true" (get-in r [:o "proceed"])))))

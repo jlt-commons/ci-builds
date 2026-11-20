@@ -195,14 +195,27 @@
     (print text))
   (flush))
 
+(defn- hours-or-default
+  "canary/parse-hours, but a bad value prints a ::warning:: naming the
+  variable and falls back to dflt (R29): a typo in a repo variable must not
+  stop the plan, and with it the status job, on every event."
+  [text dflt var-name]
+  (try (canary/parse-hours text dflt var-name)
+       (catch Exception e
+         (println (str "::warning::" (ex-message e) ", using " dflt))
+         dflt)))
+
 (defn- plan!
   "The decide step: read GitHub, work out the plan, write the job outputs."
   [env deps]
   (let [gh        (gh-of deps)
         requested (or (get env "REQUESTED") "")
-        interval  (canary/parse-hours (get env "INTERVAL_HOURS") 0 "CANARY_INTERVAL_HOURS")
-        max-age   (canary/parse-hours (get env "NIGHTLY_MAX_AGE_HOURS") 48 "NIGHTLY_MAX_AGE_HOURS")
         event     (get env "EVENT")
+        ;; Only a scheduled tick reads the interval at all.
+        interval  (if (= "schedule" event)
+                    (hours-or-default (get env "INTERVAL_HOURS") 0 "CANARY_INTERVAL_HOURS")
+                    0)
+        max-age   (hours-or-default (get env "NIGHTLY_MAX_AGE_HOURS") 48 "NIGHTLY_MAX_AGE_HOURS")
         repo      (get env "GITHUB_REPOSITORY")
         in        (merge {:requested      requested
                           :event          event
