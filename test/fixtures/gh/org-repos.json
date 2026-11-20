@@ -4,5 +4,7 @@
  {"name":"noinput","archived":false,"private":false},
  {"name":"readyrepo","archived":false,"private":false},
  {"name":"brokenrepo","archived":false,"private":false},
+ {"name":"ratelimited","archived":false,"private":false},
+ {"name":"badyaml","archived":false,"private":false},
  {"name":"oldrepo","archived":true,"private":false},
  {"name":"secretrepo","archived":false,"private":true}]

@@ -9,6 +9,7 @@ out() { if [ -n "$jqf" ]; then jq -r "$jqf" "$1"; else cat "$1"; fi; }
 fail() { echo "gh: stub has no fixture for:$a (HTTP 404)" >&2; exit 1; }
 case "$a" in
   *"orgs/jlt-commons/repos"*) out "$D/org-repos.json" ;;
+  *"repos/jlt-commons/ratelimited/contents/"*) echo "API rate limit exceeded for installation ID 4040404 (HTTP 403)" >&2; exit 1 ;;
   *"repos/jlt-commons/brokenrepo/contents/"*) echo "HTTP 500" >&2; exit 1 ;;
   *"repos/jlt-commons/"*"/contents/.github/workflows/ci.yml"*)
     p=${a#*repos/jlt-commons/}; p=${p%%/*}; [ -f "$D/$p.ci.yml" ] || fail; cat "$D/$p.ci.yml" ;;
@@ -88,4 +89,19 @@ unc() { bash "$ROOT/scripts/collect-uncovered.sh" 2>"$BATS_TMPDIR/err"; }
   echo '{"projects":[],"excluded":{}}' > "$FLEET_JSON"
   run unc
   [ "$(jq -r '.[]|select(.name=="glitter").reason' <<<"$output")" = "ready, not yet in fleet.json" ]
+}
+@test "uncovered: a 403 whose text contains 404 is not treated as a missing ci.yml" {
+  run unc
+  [ "$(jq -r '.[]|select(.name=="ratelimited").reason' <<<"$output")" = "could not read repository" ]
+  grep -q ratelimited "$BATS_TMPDIR/err"
+}
+@test "uncovered: unparsable ci.yml is could not read repository, with a warning" {
+  run unc
+  [ "$(jq -r '.[]|select(.name=="badyaml").reason' <<<"$output")" = "could not read repository" ]
+  grep -q badyaml "$BATS_TMPDIR/err"
+}
+@test "uncovered: missing yq fails loudly" {
+  mkdir -p "$BATS_TMPDIR/nobin"; for t in bash jq mktemp rm dirname cat grep tail env; do ln -sf "$(command -v $t)" "$BATS_TMPDIR/nobin/$t"; done
+  PATH="$BATS_TMPDIR/nobin" run bash "$ROOT/scripts/collect-uncovered.sh"
+  [ "$status" -ne 0 ]; [[ "$output" == *yq* ]]
 }
