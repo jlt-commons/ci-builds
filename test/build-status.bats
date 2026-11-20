@@ -169,3 +169,25 @@ hi() { jq -c "$1" "$OUT/history.json"; }
   [ "$status" -ne 0 ]
   [ ! -e "$OUT/status.json" ]
 }
+
+@test "--latest with a v prefix matches results and prev" {
+  NJ_ARG='{"published_at":"x","sha":"aaaa1111","note":"n"}' PS="$F/prev-status.json" LATEST=v0.8.27 run_bs "$F/results-latest.json"
+  [ "$status" -eq 0 ]
+  [ "$(st '.jolt.latest.version')" = '"0.8.27"' ]
+  [ "$(st '.projects[]|select(.name=="glitter").cells.latest.run_url')" = '"https://github.com/jlt-commons/glitter/actions/runs/11"' ]
+  # no stale reset for a project the results file lacks
+  [ "$(st '.projects[]|select(.name=="raygui-jlt").cells.latest.result')" = '"not-run"' ]
+  NJ_ARG='{"published_at":"x","sha":"aaaa1111","note":"n"}' PS="$F/prev-status.json" LATEST=v0.8.27 run_bs
+  [ "$(st '.projects[]|select(.name=="ebb").cells.latest.result')" = '"fail"' ]
+}
+
+@test "reprocessing the same results does not duplicate history" {
+  run_bs "$F/results-latest.json" "$F/results-nightly.json" "$F/results-adhoc.json"
+  cp "$OUT/status.json" "$BATS_TEST_TMPDIR/s1.json"; cp "$OUT/history.json" "$BATS_TEST_TMPDIR/h1.json"
+  PS="$BATS_TEST_TMPDIR/s1.json" PH="$BATS_TEST_TMPDIR/h1.json" run_bs "$F/results-latest.json" "$F/results-nightly.json" "$F/results-adhoc.json"
+  [ "$status" -eq 0 ]
+  [ "$(jq -c . "$OUT/history.json")" = "$(jq -c . "$BATS_TEST_TMPDIR/h1.json")" ]
+  [ "$(hi '.projects.glitter.adhoc|length')" = 1 ]
+  [ "$(hi '.projects.glitter.latest|length')" = 1 ]
+  [ "$(hi '.projects.glitter.nightly|length')" = 1 ]
+}

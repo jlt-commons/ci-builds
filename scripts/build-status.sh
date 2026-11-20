@@ -31,6 +31,7 @@ results=("$@")
 [ -n "$own_pin" ] && [ -n "$uncovered" ] && [ -n "$latest" ] && [ "$nightly_set" -eq 1 ] \
   && [ -n "$canary" ] && [ -n "$now" ] && [ -n "$out" ] || usage
 
+latest=${latest#v}
 mkdir -p "$out"
 tmp=$(mktemp -d "$out/.build-status.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
@@ -107,7 +108,9 @@ jq -n \
        | select(((($ph.projects // {})[.name].pin // [])[0].run_url // "__none__") != (.cell.run_url // "__none__")
                 or ((($ph.projects // {})[.name].pin // []) | length) == 0) ]) as $entries
   | ($entries | reduce .[] as $e ($ph.projects // {};
-      .[$e.name][$e.col] = ([$e.cell] + (.[$e.name][$e.col] // []))[0:30])
+      if $e.cell.run_url != null and ((.[$e.name][$e.col] // []) | any(.run_url == $e.cell.run_url))
+      then .
+      else .[$e.name][$e.col] = ([$e.cell] + (.[$e.name][$e.col] // []))[0:30] end)
     | map_values({pin: [], latest: [], nightly: [], adhoc: []} + .)) as $hist
 
   | {status: {schema: 1, generated_at: $now, canary_run: $canary,
