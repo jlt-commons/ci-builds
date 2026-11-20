@@ -28,6 +28,25 @@ version_matches() {
   [ "${requested#v}" = "$installed" ]
 }
 
+# pick_installed <requested> <nightly_sha> <logfile>...
+# Prints the first installed version (across the logs, in order) that matches
+# the request and exits 0. If none match, prints the first version found and
+# exits 1. If no log has a version, prints nothing and exits 1.
+pick_installed() {
+  local requested=$1 sha=$2 f v first=""
+  shift 2
+  for f in "$@"; do
+    v=$(installed_version "$f") || continue
+    [ -n "$first" ] || first=$v
+    if version_matches "$requested" "$v" "$sha"; then
+      printf '%s\n' "$v"
+      return 0
+    fi
+  done
+  [ -n "$first" ] && printf '%s\n' "$first"
+  return 1
+}
+
 # parse_pin <ci.yml>
 # Prints the literal version from the first JOLT_VERSION: key line, without v.
 # Exits 1 when the file or key is missing or the pin is not a literal version.

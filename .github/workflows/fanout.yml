@@ -233,20 +233,18 @@ jobs:
                 elif [ "$cc" = "success" ]; then
                   # A green run is not proof it ran the jolt we asked for: read
                   # the `jolt --version` line out of each job's log.
-                  inst=""
+                  # One job may install a different jolt on purpose (glitter-gl keeps
+                  # a v0.7.29 job), so the run counts if ANY job ran the requested one.
+                  logs=()
                   for jid in $(gh api "repos/jlt-commons/$p/actions/runs/${RUN[$p]}/jobs" \
                                  --jq '.jobs[].id' 2>/dev/null); do
                     gh api --allow-escape-sequences "repos/jlt-commons/$p/actions/jobs/$jid/logs" \
                       > "$RES_DIR/$p-$jid.log" 2> "$RES_DIR/$p-$jid.err" \
                       || echo "::warning::could not fetch the log of $p job $jid: $(head -c 300 "$RES_DIR/$p-$jid.err")"
-                    echo "  $p job $jid: $(wc -l < "$RES_DIR/$p-$jid.log") log lines, $(grep -c 'jolt v' "$RES_DIR/$p-$jid.log") 'jolt v' lines"
-                    if inst=$(installed_version "$RES_DIR/$p-$jid.log"); then break; fi
-                    inst=""
+                    logs+=("$RES_DIR/$p-$jid.log")
                   done
+                  if inst=$(pick_installed "$VERSION" "$NIGHTLY_SHA" "${logs[@]}"); then :; else cc="mismatch"; fi
                   INST[$p]="$inst"
-                  if [ -z "$inst" ] || ! version_matches "$VERSION" "$inst" "$NIGHTLY_SHA"; then
-                    cc="mismatch"
-                  fi
                 fi
                 CONC[$p]="$cc"
                 echo "  $p: $cc${INST[$p]:+ (jolt ${INST[$p]})}"
