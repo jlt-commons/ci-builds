@@ -1,4 +1,4 @@
-{"projects": ["glitter", "glitter-gl", "glitter-uikit", "raygui-jlt", "raylib-jlt", "raylib-ios", "raylib-android"],
+{"projects": ["glitter", "glitter-gl", "glitter-uikit", "raygui-jlt", "raylib-jlt", "raylib-ios", "raylib-android", "ensemble", "ebb", "docs-engine", "raylib-jolt-demo", "raylib-ios-demo"],
  "excluded": {"jolt-lsp": "its dispatch input releases jolt-lsp; needs a jolt-version input first",
               "ci-builds": "this repository",
               "demo-repository": "private demo"}}
