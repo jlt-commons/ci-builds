@@ -135,6 +135,45 @@ The tools run on their own jolt, `vars.TOOLS_JOLT_VERSION` (default `0.8.28`),
 pinned in the workflows and never the jolt under test. A release published
 overnight must not change the thing that measures releases.
 
+## Dependency graph
+
+`fleet:deps` maps which library pins which across every public jlt-commons and
+jolt-lang repository, so that when a library gets a new tag you can see
+everything that has to follow it. The `deps` workflow runs it hourly and
+commits `deps.json` to the `status` branch, beside `status.json`. The page at
+<https://jlt-commons.github.io/fleet/deps.html> reads it.
+
+It reads each repository's root `deps.edn`, tags and default branch head
+through GraphQL, one query per 25 repositories. Every git coordinate that
+names a repository in either organization becomes an edge from the dependency
+to the dependent. It resolves by `:git/url` first, then by an
+`io.github.OWNER/NAME` or `com.github.OWNER/NAME` symbol. `:local/root` (dev
+overrides, subprojects) and `:mvn/version` coordinates are not edges, and
+neither is anything in a private or archived repository.
+
+Each pin is one of:
+
+| state | meaning |
+|---|---|
+| current | the latest semver tag, its commit, the default branch head, or a commit that contains the latest tag |
+| behind | an older tag, or a commit the latest tag is not in; for an untagged library, anything but the head |
+| unknown | a `:git/ref`, a tag the library does not have, or a commit that could not be compared |
+
+A bare sha on a tagged library that matches no tag and is not the head is
+checked with GitHub's compare API, since it may sit after the last release.
+
+For each library, `deps.json` also carries the order to retag its dependents.
+If B pins A and C pins B, a new A means B moves its pin and retags, then C
+moves its pin to the new B and retags. Libraries are grouped in waves: every
+library in a wave pins only the changed library or libraries from earlier
+waves, so a wave can be released together. A library that pins two libraries
+from the graph waits for the later one. Libraries caught in a dependency cycle
+cannot be ordered and are listed separately.
+
+```
+GH_TOKEN=$(gh auth token) jolt fleet:deps --out deps.json
+```
+
 ## Dashboard
 
 <https://jlt-commons.github.io/fleet/> has one row per project and three
@@ -259,7 +298,8 @@ jolt nrepl-server   # a REPL for editors, writes .nrepl-port
 
 The tasks are in `deps.edn`: `test`, and the `fleet:` tools the workflows call
 (`fleet:own-pin`, `fleet:uncovered`, `fleet:status`, `fleet:refresh`,
-`fleet:publish`, `fleet:fanout`, `fleet:plan`, `fleet:report`). The prefix keeps
+`fleet:publish`, `fleet:fanout`, `fleet:plan`, `fleet:report`, `fleet:deps`,
+`fleet:deps-publish`). The prefix keeps
 them clear of jolt's own subcommands. Code is in `src/fleet/` and tests in
 `test/fleet/`. The ones that touch GitHub take `GH_TOKEN` from the environment,
 and the network sits behind injected functions, so the suite runs offline.
