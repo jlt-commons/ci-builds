@@ -1,0 +1,393 @@
+{
+  "schema": 1,
+  "generated_at": "2026-11-20T02:44:09Z",
+  "canary_run": "https://github.com/jlt-commons/ci-builds/actions/runs/44661939857",
+  "jolt": {
+    "latest": {
+      "version": "0.8.27"
+    },
+    "nightly": {
+      "published_at": "2026-11-19T23:48:49Z",
+      "sha": "f4e82fc8eac874cae1658b7976518253027c4f6a",
+      "note": "nightly published 2026-11-19T23:48:49Z, 2h old, at f4e82fc8"
+    }
+  },
+  "projects": [
+    {
+      "name": "glitter",
+      "pin": "0.8.24",
+      "cells": {
+        "pin": {
+          "result": "pass",
+          "version": "0.8.24",
+          "installed": null,
+          "run_url": "https://github.com/jlt-commons/glitter/actions/runs/44532172735",
+          "finished_at": "2026-11-19T13:19:23Z",
+          "failed_step": null
+        },
+        "latest": {
+          "result": "pass",
+          "version": "0.8.27",
+          "installed": "0.8.27",
+          "run_url": "https://github.com/jlt-commons/glitter/actions/runs/44661970164",
+          "finished_at": "2026-11-20T02:40:05Z",
+          "failed_step": null
+        },
+        "nightly": {
+          "result": "pass",
+          "version": "nightly",
+          "installed": "0.8.27-376-gf4e82fc8",
+          "run_url": "https://github.com/jlt-commons/glitter/actions/runs/44662448993",
+          "finished_at": "2026-11-20T02:43:39Z",
+          "failed_step": null
+        }
+      }
+    },
+    {
+      "name": "glitter-gl",
+      "pin": "0.8.24",
+      "cells": {
+        "pin": {
+          "result": "pass",
+          "version": "0.8.24",
+          "installed": null,
+          "run_url": "https://github.com/jlt-commons/glitter-gl/actions/runs/44242907141",
+          "finished_at": "2026-11-18T05:15:49Z",
+          "failed_step": null
+        },
+        "latest": {
+          "result": "pass",
+          "version": "0.8.27",
+          "installed": "0.8.27",
+          "run_url": "https://github.com/jlt-commons/glitter-gl/actions/runs/44661974157",
+          "finished_at": "2026-11-20T02:40:06Z",
+          "failed_step": null
+        },
+        "nightly": {
+          "result": "pass",
+          "version": "nightly",
+          "installed": "0.8.27-376-gf4e82fc8",
+          "run_url": "https://github.com/jlt-commons/glitter-gl/actions/runs/44662453109",
+          "finished_at": "2026-11-20T02:43:15Z",
+          "failed_step": null
+        }
+      }
+    },
+    {
+      "name": "glitter-uikit",
+      "pin": "0.8.24",
+      "cells": {
+        "pin": {
+          "result": "pass",
+          "version": "0.8.24",
+          "installed": null,
+          "run_url": "https://github.com/jlt-commons/glitter-uikit/actions/runs/44533074567",
+          "finished_at": "2026-11-19T13:24:59Z",
+          "failed_step": null
+        },
+        "latest": {
+          "result": "pass",
+          "version": "0.8.27",
+          "installed": "0.8.27",
+          "run_url": "https://github.com/jlt-commons/glitter-uikit/actions/runs/44661977875",
+          "finished_at": "2026-11-20T02:37:13Z",
+          "failed_step": null
+        },
+        "nightly": {
+          "result": "pass",
+          "version": "nightly",
+          "installed": "0.8.27-376-gf4e82fc8",
+          "run_url": "https://github.com/jlt-commons/glitter-uikit/actions/runs/44662456638",
+          "finished_at": "2026-11-20T02:41:20Z",
+          "failed_step": null
+        }
+      }
+    },
+    {
+      "name": "raygui-jlt",
+      "pin": "0.8.24",
+      "cells": {
+        "pin": {
+          "result": "pass",
+          "version": "0.8.24",
+          "installed": null,
+          "run_url": "https://github.com/jlt-commons/raygui-jlt/actions/runs/44532759276",
+          "finished_at": "2026-11-19T13:28:15Z",
+          "failed_step": null
+        },
+        "latest": {
+          "result": "pass",
+          "version": "0.8.27",
+          "installed": "0.8.27",
+          "run_url": "https://github.com/jlt-commons/raygui-jlt/actions/runs/44661981374",
+          "finished_at": "2026-11-20T02:37:36Z",
+          "failed_step": null
+        },
+        "nightly": {
+          "result": "pass",
+          "version": "nightly",
+          "installed": "0.8.27-376-gf4e82fc8",
+          "run_url": "https://github.com/jlt-commons/raygui-jlt/actions/runs/44662460321",
+          "finished_at": "2026-11-20T02:42:31Z",
+          "failed_step": null
+        }
+      }
+    },
+    {
+      "name": "raylib-android",
+      "pin": "0.8.6",
+      "cells": {
+        "pin": {
+          "result": "pass",
+          "version": "0.8.6",
+          "installed": null,
+          "run_url": "https://github.com/jlt-commons/raylib-android/actions/runs/43158371001",
+          "finished_at": "2026-11-12T05:00:00Z",
+          "failed_step": null
+        },
+        "latest": {
+          "result": "pass",
+          "version": "0.8.27",
+          "installed": "0.8.27",
+          "run_url": "https://github.com/jlt-commons/raylib-android/actions/runs/44661992773",
+          "finished_at": "2026-11-20T02:36:49Z",
+          "failed_step": null
+        },
+        "nightly": {
+          "result": "pass",
+          "version": "nightly",
+          "installed": "0.8.27-376-gf4e82fc8",
+          "run_url": "https://github.com/jlt-commons/raylib-android/actions/runs/44662472280",
+          "finished_at": "2026-11-20T02:40:56Z",
+          "failed_step": null
+        }
+      }
+    },
+    {
+      "name": "raylib-ios",
+      "pin": "0.8.24",
+      "cells": {
+        "pin": {
+          "result": "pass",
+          "version": "0.8.24",
+          "installed": null,
+          "run_url": "https://github.com/jlt-commons/raylib-ios/actions/runs/42052588867",
+          "finished_at": "2026-11-05T15:12:57Z",
+          "failed_step": null
+        },
+        "latest": {
+          "result": "pass",
+          "version": "0.8.27",
+          "installed": "0.8.27",
+          "run_url": "https://github.com/jlt-commons/raylib-ios/actions/runs/44661988884",
+          "finished_at": "2026-11-20T02:36:47Z",
+          "failed_step": null
+        },
+        "nightly": {
+          "result": "pass",
+          "version": "nightly",
+          "installed": "0.8.27-376-gf4e82fc8",
+          "run_url": "https://github.com/jlt-commons/raylib-ios/actions/runs/44662468221",
+          "finished_at": "2026-11-20T02:41:23Z",
+          "failed_step": null
+        }
+      }
+    },
+    {
+      "name": "raylib-jlt",
+      "pin": "0.8.24",
+      "cells": {
+        "pin": {
+          "result": "pass",
+          "version": "0.8.24",
+          "installed": null,
+          "run_url": "https://github.com/jlt-commons/raylib-jlt/actions/runs/44243016850",
+          "finished_at": "2026-11-18T05:18:42Z",
+          "failed_step": null
+        },
+        "latest": {
+          "result": "pass",
+          "version": "0.8.27",
+          "installed": "0.8.27",
+          "run_url": "https://github.com/jlt-commons/raylib-jlt/actions/runs/44661985157",
+          "finished_at": "2026-11-20T02:38:41Z",
+          "failed_step": null
+        },
+        "nightly": {
+          "result": "pass",
+          "version": "nightly",
+          "installed": "0.8.27-376-gf4e82fc8",
+          "run_url": "https://github.com/jlt-commons/raylib-jlt/actions/runs/44662464410",
+          "finished_at": "2026-11-20T02:43:18Z",
+          "failed_step": null
+        }
+      }
+    }
+  ],
+  "uncovered": [
+    {
+      "name": "instaparse",
+      "reason": "no ci.yml"
+    },
+    {
+      "name": "tapestry",
+      "reason": "ci.yml has no jolt-version input"
+    },
+    {
+      "name": "duratom",
+      "reason": "no ci.yml"
+    },
+    {
+      "name": "mulog",
+      "reason": "no ci.yml"
+    },
+    {
+      "name": ".github",
+      "reason": "no ci.yml"
+    },
+    {
+      "name": "meta",
+      "reason": "no ci.yml"
+    },
+    {
+      "name": "jlt-commons.github.io",
+      "reason": "no ci.yml"
+    },
+    {
+      "name": "docs-engine",
+      "reason": "ready, not yet in fleet.json"
+    },
+    {
+      "name": "ci-builds",
+      "reason": "excluded: this repository"
+    },
+    {
+      "name": "ebb",
+      "reason": "ready, not yet in fleet.json"
+    },
+    {
+      "name": "awesome-jolt",
+      "reason": "no ci.yml"
+    },
+    {
+      "name": "ftxui-jolt",
+      "reason": "no ci.yml"
+    },
+    {
+      "name": "setup-jolt",
+      "reason": "no ci.yml"
+    },
+    {
+      "name": "uikit-demo",
+      "reason": "no ci.yml"
+    },
+    {
+      "name": "glitter-core",
+      "reason": "no ci.yml"
+    },
+    {
+      "name": "nexus-jolt",
+      "reason": "no ci.yml"
+    },
+    {
+      "name": "lev",
+      "reason": "no ci.yml"
+    },
+    {
+      "name": "aws-api-jolt",
+      "reason": "no ci.yml"
+    },
+    {
+      "name": "writ",
+      "reason": "ci.yml has no jolt-version input"
+    },
+    {
+      "name": "ensemble",
+      "reason": "ready, not yet in fleet.json"
+    },
+    {
+      "name": "clj-to-ys",
+      "reason": "no ci.yml"
+    },
+    {
+      "name": "graviton",
+      "reason": "no ci.yml"
+    },
+    {
+      "name": "raylib-jolt-demo",
+      "reason": "ready, not yet in fleet.json"
+    },
+    {
+      "name": "raylib-ios-demo",
+      "reason": "ready, not yet in fleet.json"
+    },
+    {
+      "name": "ents",
+      "reason": "no ci.yml"
+    },
+    {
+      "name": "jolt-openldk",
+      "reason": "ci.yml has no jolt-version input"
+    },
+    {
+      "name": "dodeca",
+      "reason": "no ci.yml"
+    },
+    {
+      "name": "augur",
+      "reason": "no ci.yml"
+    },
+    {
+      "name": "slipstream",
+      "reason": "ci.yml has no jolt-version input"
+    },
+    {
+      "name": "nrepl-kimi-code-plugin",
+      "reason": "no ci.yml"
+    },
+    {
+      "name": "glimmer-bui",
+      "reason": "no ci.yml"
+    },
+    {
+      "name": "jolt-metrics",
+      "reason": "ci.yml has no jolt-version input"
+    },
+    {
+      "name": "overseer",
+      "reason": "no ci.yml"
+    },
+    {
+      "name": "upbge-jolt",
+      "reason": "no ci.yml"
+    },
+    {
+      "name": "jolt-nrepl-mcp",
+      "reason": "no ci.yml"
+    },
+    {
+      "name": "jolt-skills",
+      "reason": "no ci.yml"
+    },
+    {
+      "name": "yyjson-jolt",
+      "reason": "no ci.yml"
+    },
+    {
+      "name": "jolt-lsp",
+      "reason": "excluded: its dispatch input releases jolt-lsp; needs a jolt-version input first"
+    },
+    {
+      "name": "cui-jolt",
+      "reason": "no ci.yml"
+    },
+    {
+      "name": "jolt-skald",
+      "reason": "no ci.yml"
+    },
+    {
+      "name": "buzz-parse",
+      "reason": "ci.yml has no jolt-version input"
+    }
+  ]
+}
