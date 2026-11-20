@@ -1,0 +1,2 @@
+env:
+  JOLT_VERSION: ${{ needs.x.outputs.v }}

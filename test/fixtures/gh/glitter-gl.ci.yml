@@ -1,0 +1,2 @@
+env:
+  JOLT_VERSION: ${{ inputs.jolt-version || '0.8.24' }}
