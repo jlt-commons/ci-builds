@@ -1096,7 +1096,7 @@
     "state" : "current",
     "to" : "jlt-commons/docs-engine"
   } ],
-  "generated_at" : "2026-11-21T00:56:13Z",
+  "generated_at" : "2026-11-21T08:44:55Z",
   "libraries" : [ {
     "cycle" : [ ],
     "default_branch" : "main",
@@ -1584,7 +1584,7 @@
     "has_deps" : false,
     "id" : "jlt-commons/jolt-skills",
     "latest" : {
-      "sha" : "f56e61766857ab106f1387a7ce6198d05a45698f",
+      "sha" : "407f4e7eb0a372b0f70213549c60eab3e615b613",
       "tag" : null
     },
     "name" : "jolt-skills",
@@ -2192,7 +2192,7 @@
     "has_deps" : false,
     "id" : "jolt-lang/jolt-lang.github.io",
     "latest" : {
-      "sha" : "b0702bf843f4d83082f3ee457868a4641e5e2ecd",
+      "sha" : "40b72e7396f3837c1e5219b7689ce1a72c2df683",
       "tag" : null
     },
     "name" : "jolt-lang.github.io",
