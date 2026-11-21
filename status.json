@@ -1,32 +1,32 @@
 {
-  "canary_run" : "https://github.com/jlt-commons/ci-builds/actions/runs/44934694004",
-  "generated_at" : "2026-11-21T18:17:50Z",
+  "canary_run" : "https://github.com/jlt-commons/ci-builds/actions/runs/44961975260",
+  "generated_at" : "2026-11-21T23:38:03Z",
   "jolt" : {
     "latest" : {
       "version" : "0.8.28"
     },
     "nightly" : {
-      "note" : "nightly published 2026-11-20T23:33:20Z at 4dd7c603",
-      "published_at" : "2026-11-20T23:33:20Z",
-      "sha" : "4dd7c6030ffe283bf9b991dadaeac48212420bd7"
+      "note" : "nightly published 2026-11-21T22:25:53Z at bcd099cc",
+      "published_at" : "2026-11-21T22:25:53Z",
+      "sha" : "bcd099cc85282bae0d82eeff09e49235ddb62494"
     }
   },
   "projects" : [ {
     "cells" : {
       "latest" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-21T03:27:59Z",
+        "finished_at" : "2026-11-21T23:29:59Z",
         "installed" : "0.8.28",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/docs-engine/actions/runs/44861185751",
+        "run_url" : "https://github.com/jlt-commons/docs-engine/actions/runs/44962036063",
         "version" : "0.8.28"
       },
       "nightly" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-21T03:32:26Z",
-        "installed" : "0.8.28-9-g4dd7c603",
+        "finished_at" : "2026-11-21T23:34:39Z",
+        "installed" : "0.8.28-27-gbcd099cc",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/docs-engine/actions/runs/44861567185",
+        "run_url" : "https://github.com/jlt-commons/docs-engine/actions/runs/44962398954",
         "version" : "nightly"
       },
       "pin" : {
@@ -44,18 +44,18 @@
     "cells" : {
       "latest" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-21T03:27:32Z",
+        "finished_at" : "2026-11-21T23:29:58Z",
         "installed" : "0.8.28",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/ebb/actions/runs/44861182566",
+        "run_url" : "https://github.com/jlt-commons/ebb/actions/runs/44962033498",
         "version" : "0.8.28"
       },
       "nightly" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-21T03:32:01Z",
-        "installed" : "0.8.28-9-g4dd7c603",
+        "finished_at" : "2026-11-21T23:34:14Z",
+        "installed" : "0.8.28-27-gbcd099cc",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/ebb/actions/runs/44861563939",
+        "run_url" : "https://github.com/jlt-commons/ebb/actions/runs/44962396862",
         "version" : "nightly"
       },
       "pin" : {
@@ -73,18 +73,18 @@
     "cells" : {
       "latest" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-21T03:30:45Z",
+        "finished_at" : "2026-11-21T23:33:07Z",
         "installed" : "0.8.28",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/ensemble/actions/runs/44861179554",
+        "run_url" : "https://github.com/jlt-commons/ensemble/actions/runs/44962031010",
         "version" : "0.8.28"
       },
       "nightly" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-21T03:35:13Z",
-        "installed" : "0.8.28-9-g4dd7c603",
+        "finished_at" : "2026-11-21T23:37:42Z",
+        "installed" : "0.8.28-27-gbcd099cc",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/ensemble/actions/runs/44861558303",
+        "run_url" : "https://github.com/jlt-commons/ensemble/actions/runs/44962394520",
         "version" : "nightly"
       },
       "pin" : {
@@ -102,18 +102,18 @@
     "cells" : {
       "latest" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-21T03:27:54Z",
+        "finished_at" : "2026-11-21T23:29:50Z",
         "installed" : "0.8.28",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/glitter/actions/runs/44861158805",
+        "run_url" : "https://github.com/jlt-commons/glitter/actions/runs/44962013416",
         "version" : "0.8.28"
       },
       "nightly" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-21T03:32:23Z",
-        "installed" : "0.8.28-9-g4dd7c603",
+        "finished_at" : "2026-11-21T23:34:36Z",
+        "installed" : "0.8.28-27-gbcd099cc",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/glitter/actions/runs/44861538842",
+        "run_url" : "https://github.com/jlt-commons/glitter/actions/runs/44962376541",
         "version" : "nightly"
       },
       "pin" : {
@@ -131,18 +131,18 @@
     "cells" : {
       "latest" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-21T03:28:21Z",
+        "finished_at" : "2026-11-21T23:30:21Z",
         "installed" : "0.8.28",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/glitter-gl/actions/runs/44861161735",
+        "run_url" : "https://github.com/jlt-commons/glitter-gl/actions/runs/44962016002",
         "version" : "0.8.28"
       },
       "nightly" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-21T03:32:49Z",
-        "installed" : "0.8.28-9-g4dd7c603",
+        "finished_at" : "2026-11-21T23:34:37Z",
+        "installed" : "0.8.28-27-gbcd099cc",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/glitter-gl/actions/runs/44861541641",
+        "run_url" : "https://github.com/jlt-commons/glitter-gl/actions/runs/44962379048",
         "version" : "nightly"
       },
       "pin" : {
@@ -160,18 +160,18 @@
     "cells" : {
       "latest" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-21T03:27:55Z",
+        "finished_at" : "2026-11-21T23:29:52Z",
         "installed" : "0.8.28",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/glitter-uikit/actions/runs/44861164388",
+        "run_url" : "https://github.com/jlt-commons/glitter-uikit/actions/runs/44962018601",
         "version" : "0.8.28"
       },
       "nightly" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-21T03:31:55Z",
-        "installed" : "0.8.28-9-g4dd7c603",
+        "finished_at" : "2026-11-21T23:34:09Z",
+        "installed" : "0.8.28-27-gbcd099cc",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/glitter-uikit/actions/runs/44861545023",
+        "run_url" : "https://github.com/jlt-commons/glitter-uikit/actions/runs/44962382008",
         "version" : "nightly"
       },
       "pin" : {
@@ -189,18 +189,18 @@
     "cells" : {
       "latest" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-21T03:27:57Z",
+        "finished_at" : "2026-11-21T23:30:22Z",
         "installed" : "0.8.28",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/raygui-jlt/actions/runs/44861166752",
+        "run_url" : "https://github.com/jlt-commons/raygui-jlt/actions/runs/44962021051",
         "version" : "0.8.28"
       },
       "nightly" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-21T03:32:25Z",
-        "installed" : "0.8.28-9-g4dd7c603",
+        "finished_at" : "2026-11-21T23:34:10Z",
+        "installed" : "0.8.28-27-gbcd099cc",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/raygui-jlt/actions/runs/44861547731",
+        "run_url" : "https://github.com/jlt-commons/raygui-jlt/actions/runs/44962384943",
         "version" : "nightly"
       },
       "pin" : {
@@ -218,18 +218,18 @@
     "cells" : {
       "latest" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-21T03:27:31Z",
+        "finished_at" : "2026-11-21T23:29:56Z",
         "installed" : "0.8.28",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/raylib-android/actions/runs/44861176086",
+        "run_url" : "https://github.com/jlt-commons/raylib-android/actions/runs/44962028457",
         "version" : "0.8.28"
       },
       "nightly" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-21T03:32:00Z",
-        "installed" : "0.8.28-9-g4dd7c603",
+        "finished_at" : "2026-11-21T23:34:13Z",
+        "installed" : "0.8.28-27-gbcd099cc",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/raylib-android/actions/runs/44861555579",
+        "run_url" : "https://github.com/jlt-commons/raylib-android/actions/runs/44962391967",
         "version" : "nightly"
       },
       "pin" : {
@@ -247,18 +247,18 @@
     "cells" : {
       "latest" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-21T03:27:29Z",
+        "finished_at" : "2026-11-21T23:29:54Z",
         "installed" : "0.8.28",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/raylib-ios/actions/runs/44861173014",
+        "run_url" : "https://github.com/jlt-commons/raylib-ios/actions/runs/44962026174",
         "version" : "0.8.28"
       },
       "nightly" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-21T03:31:57Z",
-        "installed" : "0.8.28-9-g4dd7c603",
+        "finished_at" : "2026-11-21T23:34:12Z",
+        "installed" : "0.8.28-27-gbcd099cc",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/raylib-ios/actions/runs/44861553110",
+        "run_url" : "https://github.com/jlt-commons/raylib-ios/actions/runs/44962389697",
         "version" : "nightly"
       },
       "pin" : {
@@ -276,18 +276,18 @@
     "cells" : {
       "latest" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-21T03:28:22Z",
+        "finished_at" : "2026-11-21T23:31:04Z",
         "installed" : "0.8.28",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/raylib-jlt/actions/runs/44861169920",
+        "run_url" : "https://github.com/jlt-commons/raylib-jlt/actions/runs/44962023525",
         "version" : "0.8.28"
       },
       "nightly" : {
         "failed_step" : null,
-        "finished_at" : "2026-11-21T03:33:10Z",
-        "installed" : "0.8.28-9-g4dd7c603",
+        "finished_at" : "2026-11-21T23:34:38Z",
+        "installed" : "0.8.28-27-gbcd099cc",
         "result" : "pass",
-        "run_url" : "https://github.com/jlt-commons/raylib-jlt/actions/runs/44861550261",
+        "run_url" : "https://github.com/jlt-commons/raylib-jlt/actions/runs/44962387256",
         "version" : "nightly"
       },
       "pin" : {
