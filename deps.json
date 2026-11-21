@@ -1096,7 +1096,7 @@
     "state" : "current",
     "to" : "jlt-commons/docs-engine"
   } ],
-  "generated_at" : "2026-11-21T08:44:55Z",
+  "generated_at" : "2026-11-21T22:20:33Z",
   "libraries" : [ {
     "cycle" : [ ],
     "default_branch" : "main",
@@ -1136,7 +1136,7 @@
     "has_deps" : false,
     "id" : "jlt-commons/awesome-jolt",
     "latest" : {
-      "sha" : "d0e39f49f80ef8f0675054f11263434136b12a66",
+      "sha" : "bb92992ea6feb43d3eb83601eb5bba404d2ac438",
       "tag" : null
     },
     "name" : "awesome-jolt",
