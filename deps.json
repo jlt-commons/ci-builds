@@ -1096,7 +1096,7 @@
     "state" : "current",
     "to" : "jlt-commons/docs-engine"
   } ],
-  "generated_at" : "2026-11-21T22:20:33Z",
+  "generated_at" : "2026-11-22T10:14:43Z",
   "libraries" : [ {
     "cycle" : [ ],
     "default_branch" : "main",
@@ -1536,8 +1536,8 @@
     "has_deps" : true,
     "id" : "jlt-commons/jolt-nrepl-mcp",
     "latest" : {
-      "sha" : "71f735b61d708e475d66582d70c460ab1e29fb79",
-      "tag" : "v0.4.2"
+      "sha" : "caef18e8c729f5d1e73fda4311d0247dd3b7032b",
+      "tag" : "v0.4.3"
     },
     "name" : "jolt-nrepl-mcp",
     "org" : "jlt-commons",
