@@ -1096,7 +1096,7 @@
     "state" : "current",
     "to" : "jlt-commons/docs-engine"
   } ],
-  "generated_at" : "2026-11-22T10:14:43Z",
+  "generated_at" : "2026-11-23T20:30:24Z",
   "libraries" : [ {
     "cycle" : [ ],
     "default_branch" : "main",
@@ -1488,7 +1488,7 @@
     "has_deps" : true,
     "id" : "jlt-commons/jolt-kimi-plugin",
     "latest" : {
-      "sha" : "e1d535dc100f1c47652c7b636ba393b1b5fd3fd4",
+      "sha" : "7a3b42dd121751118064e3083f193d0509dbe29f",
       "tag" : null
     },
     "name" : "jolt-kimi-plugin",
@@ -1584,7 +1584,7 @@
     "has_deps" : false,
     "id" : "jlt-commons/jolt-skills",
     "latest" : {
-      "sha" : "407f4e7eb0a372b0f70213549c60eab3e615b613",
+      "sha" : "80416aacff4bdf6f6aa9aac71007cc569df02489",
       "tag" : null
     },
     "name" : "jolt-skills",
@@ -2112,7 +2112,7 @@
     "has_deps" : false,
     "id" : "jolt-lang/homebrew-jolt",
     "latest" : {
-      "sha" : "b2850dd57965db99c74fa1c904fbe34acdf86131",
+      "sha" : "9e122a8d73b33e28ec332dca0b4f2177f091bc6b",
       "tag" : null
     },
     "name" : "homebrew-jolt",
@@ -2144,8 +2144,8 @@
     "has_deps" : false,
     "id" : "jolt-lang/jolt",
     "latest" : {
-      "sha" : "1b33066fdfbd5003de5556fde16d0c70d80423e4",
-      "tag" : "v0.8.28"
+      "sha" : "5ec7e4c5454ffcf53eb987cbdf4d82b80f176e22",
+      "tag" : "v0.8.29"
     },
     "name" : "jolt",
     "org" : "jolt-lang",
@@ -2192,7 +2192,7 @@
     "has_deps" : false,
     "id" : "jolt-lang/jolt-lang.github.io",
     "latest" : {
-      "sha" : "40b72e7396f3837c1e5219b7689ce1a72c2df683",
+      "sha" : "b295c3d2f23a3780fb24446c86cab77eae4e77c1",
       "tag" : null
     },
     "name" : "jolt-lang.github.io",
