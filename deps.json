@@ -1,5 +1,19 @@
 {
   "edges" : [ {
+    "dep" : "jlt-commons/cui-jolt",
+    "from" : "jlt-commons/cui-jolt",
+    "pins" : [ {
+      "dep" : "jlt-commons/cui-jolt",
+      "path" : [ "deps" ],
+      "ref" : null,
+      "resolved" : null,
+      "sha" : "a981b6cd3e99d1866497306b5afa5e70a640d46c",
+      "state" : "current",
+      "tag" : null
+    } ],
+    "state" : "current",
+    "to" : "jolt-lang/glimmer-cui"
+  }, {
     "dep" : "jlt-commons/ebb",
     "from" : "jlt-commons/ebb",
     "pins" : [ {
@@ -430,10 +444,10 @@
       "ref" : null,
       "resolved" : "v0.1.8",
       "sha" : "7f00d14d1b3c6239638d03780006c4a76fca379f",
-      "state" : "current",
+      "state" : "behind",
       "tag" : "v0.1.8"
     } ],
-    "state" : "current",
+    "state" : "behind",
     "to" : "jlt-commons/glimmer-bui"
   }, {
     "dep" : "jolt-lang/glimmer",
@@ -444,10 +458,10 @@
       "ref" : null,
       "resolved" : "v0.1.8",
       "sha" : "7f00d14d1b3c6239638d03780006c4a76fca379f",
-      "state" : "current",
+      "state" : "behind",
       "tag" : "v0.1.8"
     } ],
-    "state" : "current",
+    "state" : "behind",
     "to" : "jlt-commons/slipstream"
   }, {
     "dep" : "jolt-lang/glimmer",
@@ -458,10 +472,10 @@
       "ref" : null,
       "resolved" : "v0.1.8",
       "sha" : "7f00d14d1b3c6239638d03780006c4a76fca379f",
-      "state" : "current",
+      "state" : "behind",
       "tag" : "v0.1.8"
     } ],
-    "state" : "current",
+    "state" : "behind",
     "to" : "jolt-lang/glimmer-android"
   }, {
     "dep" : "jolt-lang/glimmer",
@@ -472,10 +486,10 @@
       "ref" : null,
       "resolved" : "v0.1.8",
       "sha" : "7f00d14d1b3c6239638d03780006c4a76fca379f",
-      "state" : "current",
+      "state" : "behind",
       "tag" : "v0.1.8"
     } ],
-    "state" : "current",
+    "state" : "behind",
     "to" : "jolt-lang/glimmer-appkit"
   }, {
     "dep" : "jolt-lang/glimmer",
@@ -484,13 +498,13 @@
       "dep" : "jolt-lang/glimmer",
       "path" : [ "deps" ],
       "ref" : null,
-      "resolved" : "v0.1.8",
-      "sha" : "7f00d14d1b3c6239638d03780006c4a76fca379f",
+      "resolved" : "v0.2.1",
+      "sha" : "a61f5ef71f56033c7a6765f400a5978ee76b7b6b",
       "state" : "current",
-      "tag" : "v0.1.8"
+      "tag" : "v0.2.1"
     } ],
     "state" : "current",
-    "to" : "jolt-lang/glimmer-datastar"
+    "to" : "jolt-lang/glimmer-cui"
   }, {
     "dep" : "jolt-lang/glimmer",
     "from" : "jolt-lang/glimmer",
@@ -500,8 +514,36 @@
       "ref" : null,
       "resolved" : "v0.1.8",
       "sha" : "7f00d14d1b3c6239638d03780006c4a76fca379f",
-      "state" : "current",
+      "state" : "behind",
       "tag" : "v0.1.8"
+    } ],
+    "state" : "behind",
+    "to" : "jolt-lang/glimmer-datastar"
+  }, {
+    "dep" : "jolt-lang/glimmer",
+    "from" : "jolt-lang/glimmer",
+    "pins" : [ {
+      "dep" : "jolt-lang/glimmer",
+      "path" : [ "deps" ],
+      "ref" : null,
+      "resolved" : "v0.2.1",
+      "sha" : "a61f5ef71f56033c7a6765f400a5978ee76b7b6b",
+      "state" : "current",
+      "tag" : "v0.2.1"
+    } ],
+    "state" : "current",
+    "to" : "jolt-lang/glimmer-datastar-client"
+  }, {
+    "dep" : "jolt-lang/glimmer",
+    "from" : "jolt-lang/glimmer",
+    "pins" : [ {
+      "dep" : "jolt-lang/glimmer",
+      "path" : [ "deps" ],
+      "ref" : null,
+      "resolved" : "v0.2.1",
+      "sha" : "a61f5ef71f56033c7a6765f400a5978ee76b7b6b",
+      "state" : "current",
+      "tag" : "v0.2.1"
     } ],
     "state" : "current",
     "to" : "jolt-lang/glimmer-gtk"
@@ -514,10 +556,10 @@
       "ref" : null,
       "resolved" : "v0.1.8",
       "sha" : "7f00d14d1b3c6239638d03780006c4a76fca379f",
-      "state" : "current",
+      "state" : "behind",
       "tag" : "v0.1.8"
     } ],
-    "state" : "current",
+    "state" : "behind",
     "to" : "jolt-lang/glimmer-qt"
   }, {
     "dep" : "jolt-lang/glimmer",
@@ -526,10 +568,10 @@
       "dep" : "jolt-lang/glimmer",
       "path" : [ "deps" ],
       "ref" : null,
-      "resolved" : "v0.1.8",
-      "sha" : "7f00d14d1b3c6239638d03780006c4a76fca379f",
+      "resolved" : "v0.2.1",
+      "sha" : "a61f5ef71f56033c7a6765f400a5978ee76b7b6b",
       "state" : "current",
-      "tag" : "v0.1.8"
+      "tag" : "v0.2.1"
     } ],
     "state" : "current",
     "to" : "jolt-lang/glimmer-tui"
@@ -540,13 +582,49 @@
       "dep" : "jolt-lang/glimmer",
       "path" : [ "deps" ],
       "ref" : null,
-      "resolved" : "v0.1.8",
-      "sha" : "7f00d14d1b3c6239638d03780006c4a76fca379f",
+      "resolved" : "v0.2.1",
+      "sha" : "a61f5ef71f56033c7a6765f400a5978ee76b7b6b",
       "state" : "current",
-      "tag" : "v0.1.8"
+      "tag" : "v0.2.1"
     } ],
     "state" : "current",
     "to" : "jolt-lang/glimmer-uikit"
+  }, {
+    "dep" : "jolt-lang/glimmer-datastar",
+    "from" : "jolt-lang/glimmer-datastar",
+    "pins" : [ {
+      "dep" : "jolt-lang/glimmer-datastar",
+      "path" : [ "aliases", "test", "extra-deps" ],
+      "ref" : null,
+      "resolved" : "v0.1.12",
+      "sha" : "1ee12aaaf587c5fae22cb94747fe280c20e3380b",
+      "state" : "current",
+      "tag" : "v0.1.12"
+    }, {
+      "dep" : "jolt-lang/glimmer-datastar",
+      "path" : [ "aliases", "examples", "extra-deps" ],
+      "ref" : null,
+      "resolved" : "v0.1.12",
+      "sha" : "1ee12aaaf587c5fae22cb94747fe280c20e3380b",
+      "state" : "current",
+      "tag" : "v0.1.12"
+    } ],
+    "state" : "current",
+    "to" : "jolt-lang/glimmer-datastar-client"
+  }, {
+    "dep" : "jolt-lang/glimmer-gtk",
+    "from" : "jolt-lang/glimmer-gtk",
+    "pins" : [ {
+      "dep" : "jolt-lang/glimmer-gtk",
+      "path" : [ "aliases", "examples", "extra-deps" ],
+      "ref" : null,
+      "resolved" : "v0.2.2",
+      "sha" : "3d46afcd1f0c50d26483dd8e20f76cb3433602a6",
+      "state" : "current",
+      "tag" : "v0.2.2"
+    } ],
+    "state" : "current",
+    "to" : "jolt-lang/glimmer-datastar-client"
   }, {
     "dep" : "jolt-lang/glimmer-gtk",
     "from" : "jolt-lang/glimmer-gtk",
@@ -554,13 +632,27 @@
       "dep" : "jolt-lang/glimmer-gtk",
       "path" : [ "deps" ],
       "ref" : null,
-      "resolved" : "v0.1.3",
-      "sha" : "582966ab6c0b793ad5eef607f0ca2986453da7b1",
+      "resolved" : "v0.2.2",
+      "sha" : "3d46afcd1f0c50d26483dd8e20f76cb3433602a6",
       "state" : "current",
-      "tag" : "v0.1.3"
+      "tag" : "v0.2.2"
     } ],
     "state" : "current",
     "to" : "jolt-lang/glimmer-gl"
+  }, {
+    "dep" : "jolt-lang/glimmer-tui",
+    "from" : "jolt-lang/glimmer-tui",
+    "pins" : [ {
+      "dep" : "jolt-lang/glimmer-tui",
+      "path" : [ "aliases", "examples", "extra-deps" ],
+      "ref" : null,
+      "resolved" : "v0.3.2",
+      "sha" : "a4a2623ecdfb997ddb22c215484b019d08f9ee52",
+      "state" : "current",
+      "tag" : "v0.3.2"
+    } ],
+    "state" : "current",
+    "to" : "jolt-lang/glimmer-datastar-client"
   }, {
     "dep" : "jolt-lang/http-client",
     "from" : "jolt-lang/http-client",
@@ -584,10 +676,10 @@
       "ref" : null,
       "resolved" : null,
       "sha" : "03267126e0bebe172936e9618b9ff6cd678edaac",
-      "state" : "current",
+      "state" : "behind",
       "tag" : null
     } ],
-    "state" : "current",
+    "state" : "behind",
     "to" : "jlt-commons/ci-builds"
   }, {
     "dep" : "jolt-lang/http-client",
@@ -617,6 +709,20 @@
     } ],
     "state" : "behind",
     "to" : "jlt-commons/uikit-demo"
+  }, {
+    "dep" : "jolt-lang/http-client",
+    "from" : "jolt-lang/http-client",
+    "pins" : [ {
+      "dep" : "jolt-lang/http-client",
+      "path" : [ "deps" ],
+      "ref" : null,
+      "resolved" : "v0.1.10",
+      "sha" : "bf1485ebd44b798d96306913ad800e76a9f58957",
+      "state" : "current",
+      "tag" : "v0.1.10"
+    } ],
+    "state" : "current",
+    "to" : "jolt-lang/glimmer-datastar-client"
   }, {
     "dep" : "jolt-lang/http-client",
     "from" : "jolt-lang/http-client",
@@ -849,6 +955,28 @@
     } ],
     "state" : "behind",
     "to" : "jlt-commons/overseer"
+  }, {
+    "dep" : "jolt-lang/ring-chez-adapter",
+    "from" : "jolt-lang/ring-chez-adapter",
+    "pins" : [ {
+      "dep" : "jolt-lang/ring-chez-adapter",
+      "path" : [ "aliases", "test", "extra-deps" ],
+      "ref" : null,
+      "resolved" : "v0.10.1",
+      "sha" : "387cf67ea7b6a8573c6ee6abca6026a45bc3b6bf",
+      "state" : "current",
+      "tag" : "v0.10.1"
+    }, {
+      "dep" : "jolt-lang/ring-chez-adapter",
+      "path" : [ "aliases", "examples", "extra-deps" ],
+      "ref" : null,
+      "resolved" : "v0.10.1",
+      "sha" : "387cf67ea7b6a8573c6ee6abca6026a45bc3b6bf",
+      "state" : "current",
+      "tag" : "v0.10.1"
+    } ],
+    "state" : "current",
+    "to" : "jolt-lang/glimmer-datastar-client"
   }, {
     "dep" : "jolt-lang/time",
     "from" : "jolt-lang/time",
@@ -1096,7 +1224,7 @@
     "state" : "current",
     "to" : "jlt-commons/docs-engine"
   } ],
-  "generated_at" : "2026-11-23T20:30:24Z",
+  "generated_at" : "2026-11-24T04:57:02Z",
   "libraries" : [ {
     "cycle" : [ ],
     "default_branch" : "main",
@@ -1224,7 +1352,7 @@
     "unreadable" : false,
     "upstream" : [ ],
     "url" : "https://github.com/jlt-commons/cui-jolt",
-    "waves" : [ ]
+    "waves" : [ [ "jolt-lang/glimmer-cui" ] ]
   }, {
     "cycle" : [ ],
     "default_branch" : "main",
@@ -1912,7 +2040,7 @@
     "unreadable" : false,
     "upstream" : [ ],
     "url" : "https://github.com/jolt-lang/crypto",
-    "waves" : [ [ "jolt-lang/http-client" ], [ "jlt-commons/aws-api-jolt", "jlt-commons/ci-builds", "jlt-commons/uikit-demo", "jolt-lang/otel", "jolt-lang/ring-chez-adapter" ], [ "jlt-commons/docs-engine", "jlt-commons/lev" ], [ "jlt-commons/overseer" ] ]
+    "waves" : [ [ "jolt-lang/http-client" ], [ "jlt-commons/aws-api-jolt", "jlt-commons/ci-builds", "jlt-commons/uikit-demo", "jolt-lang/otel", "jolt-lang/ring-chez-adapter" ], [ "jlt-commons/docs-engine", "jlt-commons/lev", "jolt-lang/glimmer-datastar-client" ], [ "jlt-commons/overseer" ] ]
   }, {
     "cycle" : [ ],
     "default_branch" : "main",
@@ -1968,15 +2096,15 @@
     "has_deps" : true,
     "id" : "jolt-lang/glimmer",
     "latest" : {
-      "sha" : "7f00d14d1b3c6239638d03780006c4a76fca379f",
-      "tag" : "v0.1.8"
+      "sha" : "a61f5ef71f56033c7a6765f400a5978ee76b7b6b",
+      "tag" : "v0.2.1"
     },
     "name" : "glimmer",
     "org" : "jolt-lang",
     "unreadable" : false,
     "upstream" : [ ],
     "url" : "https://github.com/jolt-lang/glimmer",
-    "waves" : [ [ "jlt-commons/duratom", "jlt-commons/glimmer-bui", "jlt-commons/slipstream", "jolt-lang/glimmer-android", "jolt-lang/glimmer-appkit", "jolt-lang/glimmer-datastar", "jolt-lang/glimmer-gtk", "jolt-lang/glimmer-qt", "jolt-lang/glimmer-tui", "jolt-lang/glimmer-uikit" ], [ "jolt-lang/glimmer-gl" ] ]
+    "waves" : [ [ "jlt-commons/duratom", "jlt-commons/glimmer-bui", "jlt-commons/slipstream", "jolt-lang/glimmer-android", "jolt-lang/glimmer-appkit", "jolt-lang/glimmer-cui", "jolt-lang/glimmer-datastar", "jolt-lang/glimmer-gtk", "jolt-lang/glimmer-qt", "jolt-lang/glimmer-tui", "jolt-lang/glimmer-uikit" ], [ "jolt-lang/glimmer-datastar-client", "jolt-lang/glimmer-gl" ] ]
   }, {
     "cycle" : [ ],
     "default_branch" : "main",
@@ -2012,6 +2140,22 @@
   }, {
     "cycle" : [ ],
     "default_branch" : "main",
+    "git_url" : "https://github.com/jolt-lang/glimmer-cui.git",
+    "has_deps" : true,
+    "id" : "jolt-lang/glimmer-cui",
+    "latest" : {
+      "sha" : "9e9a4a070e7db5cd95451068941e6a31037b88f0",
+      "tag" : null
+    },
+    "name" : "glimmer-cui",
+    "org" : "jolt-lang",
+    "unreadable" : false,
+    "upstream" : [ "jlt-commons/cui-jolt", "jolt-lang/glimmer" ],
+    "url" : "https://github.com/jolt-lang/glimmer-cui",
+    "waves" : [ ]
+  }, {
+    "cycle" : [ ],
+    "default_branch" : "main",
     "git_url" : "https://github.com/jolt-lang/glimmer-datastar.git",
     "has_deps" : true,
     "id" : "jolt-lang/glimmer-datastar",
@@ -2024,6 +2168,22 @@
     "unreadable" : false,
     "upstream" : [ "jolt-lang/glimmer", "jolt-lang/time" ],
     "url" : "https://github.com/jolt-lang/glimmer-datastar",
+    "waves" : [ [ "jolt-lang/glimmer-datastar-client" ] ]
+  }, {
+    "cycle" : [ ],
+    "default_branch" : "main",
+    "git_url" : "https://github.com/jolt-lang/glimmer-datastar-client.git",
+    "has_deps" : true,
+    "id" : "jolt-lang/glimmer-datastar-client",
+    "latest" : {
+      "sha" : "7f671339af05811defd22fb441ac9b61a5eb1adf",
+      "tag" : null
+    },
+    "name" : "glimmer-datastar-client",
+    "org" : "jolt-lang",
+    "unreadable" : false,
+    "upstream" : [ "jolt-lang/crypto", "jolt-lang/glimmer", "jolt-lang/glimmer-datastar", "jolt-lang/glimmer-gtk", "jolt-lang/glimmer-tui", "jolt-lang/http-client", "jolt-lang/multipart", "jolt-lang/ring-chez-adapter", "jolt-lang/time" ],
+    "url" : "https://github.com/jolt-lang/glimmer-datastar-client",
     "waves" : [ ]
   }, {
     "cycle" : [ ],
@@ -2032,8 +2192,8 @@
     "has_deps" : true,
     "id" : "jolt-lang/glimmer-gl",
     "latest" : {
-      "sha" : "551c707dca15ff3f4b74a75f3ba7b4f25f68b2a3",
-      "tag" : "v0.1.4"
+      "sha" : "8e74cdf6da29e9f2a9f093c07cbd45a307b5101c",
+      "tag" : "v0.1.7"
     },
     "name" : "glimmer-gl",
     "org" : "jolt-lang",
@@ -2048,15 +2208,15 @@
     "has_deps" : true,
     "id" : "jolt-lang/glimmer-gtk",
     "latest" : {
-      "sha" : "582966ab6c0b793ad5eef607f0ca2986453da7b1",
-      "tag" : "v0.1.3"
+      "sha" : "3d46afcd1f0c50d26483dd8e20f76cb3433602a6",
+      "tag" : "v0.2.2"
     },
     "name" : "glimmer-gtk",
     "org" : "jolt-lang",
     "unreadable" : false,
     "upstream" : [ "jolt-lang/glimmer" ],
     "url" : "https://github.com/jolt-lang/glimmer-gtk",
-    "waves" : [ [ "jolt-lang/glimmer-gl" ] ]
+    "waves" : [ [ "jolt-lang/glimmer-datastar-client", "jolt-lang/glimmer-gl" ] ]
   }, {
     "cycle" : [ ],
     "default_branch" : "main",
@@ -2080,15 +2240,15 @@
     "has_deps" : true,
     "id" : "jolt-lang/glimmer-tui",
     "latest" : {
-      "sha" : "c126bc3ceeead0058ba84ff8a8eceef5fae20966",
-      "tag" : "v0.2.15"
+      "sha" : "a4a2623ecdfb997ddb22c215484b019d08f9ee52",
+      "tag" : "v0.3.2"
     },
     "name" : "glimmer-tui",
     "org" : "jolt-lang",
     "unreadable" : false,
     "upstream" : [ "jolt-lang/glimmer" ],
     "url" : "https://github.com/jolt-lang/glimmer-tui",
-    "waves" : [ ]
+    "waves" : [ [ "jolt-lang/glimmer-datastar-client" ] ]
   }, {
     "cycle" : [ ],
     "default_branch" : "main",
@@ -2096,8 +2256,8 @@
     "has_deps" : true,
     "id" : "jolt-lang/glimmer-uikit",
     "latest" : {
-      "sha" : "8ccf12a68fa4f1bf9ca512b87bb5c9b2b3b06f1d",
-      "tag" : "v0.3.2"
+      "sha" : "d52ac82b442b472138f7711f7635ac914e763cbc",
+      "tag" : "v0.4.1"
     },
     "name" : "glimmer-uikit",
     "org" : "jolt-lang",
@@ -2128,15 +2288,15 @@
     "has_deps" : true,
     "id" : "jolt-lang/http-client",
     "latest" : {
-      "sha" : "b45e46f7ad9d41a8bc7902659751a2f366013cf7",
-      "tag" : "v0.1.9"
+      "sha" : "bf1485ebd44b798d96306913ad800e76a9f58957",
+      "tag" : "v0.1.10"
     },
     "name" : "http-client",
     "org" : "jolt-lang",
     "unreadable" : false,
     "upstream" : [ "jolt-lang/crypto", "jolt-lang/multipart" ],
     "url" : "https://github.com/jolt-lang/http-client",
-    "waves" : [ [ "jlt-commons/aws-api-jolt", "jlt-commons/ci-builds", "jlt-commons/uikit-demo", "jolt-lang/otel", "jolt-lang/ring-chez-adapter" ], [ "jlt-commons/docs-engine", "jlt-commons/lev" ], [ "jlt-commons/overseer" ] ]
+    "waves" : [ [ "jlt-commons/aws-api-jolt", "jlt-commons/ci-builds", "jlt-commons/uikit-demo", "jolt-lang/otel", "jolt-lang/ring-chez-adapter" ], [ "jlt-commons/docs-engine", "jlt-commons/lev", "jolt-lang/glimmer-datastar-client" ], [ "jlt-commons/overseer" ] ]
   }, {
     "cycle" : [ ],
     "default_branch" : "main",
@@ -2232,7 +2392,7 @@
     "unreadable" : false,
     "upstream" : [ ],
     "url" : "https://github.com/jolt-lang/multipart",
-    "waves" : [ [ "jolt-lang/http-client" ], [ "jlt-commons/aws-api-jolt", "jlt-commons/ci-builds", "jlt-commons/uikit-demo", "jolt-lang/otel", "jolt-lang/ring-chez-adapter" ], [ "jlt-commons/docs-engine", "jlt-commons/lev" ], [ "jlt-commons/overseer" ] ]
+    "waves" : [ [ "jolt-lang/http-client" ], [ "jlt-commons/aws-api-jolt", "jlt-commons/ci-builds", "jlt-commons/uikit-demo", "jolt-lang/otel", "jolt-lang/ring-chez-adapter" ], [ "jlt-commons/docs-engine", "jlt-commons/lev", "jolt-lang/glimmer-datastar-client" ], [ "jlt-commons/overseer" ] ]
   }, {
     "cycle" : [ ],
     "default_branch" : "main",
@@ -2296,7 +2456,7 @@
     "unreadable" : false,
     "upstream" : [ "jolt-lang/crypto", "jolt-lang/http-client", "jolt-lang/multipart" ],
     "url" : "https://github.com/jolt-lang/ring-chez-adapter",
-    "waves" : [ [ "jlt-commons/docs-engine", "jlt-commons/lev" ], [ "jlt-commons/overseer" ] ]
+    "waves" : [ [ "jlt-commons/docs-engine", "jlt-commons/lev", "jolt-lang/glimmer-datastar-client" ], [ "jlt-commons/overseer" ] ]
   }, {
     "cycle" : [ ],
     "default_branch" : "main",
@@ -2328,7 +2488,7 @@
     "unreadable" : false,
     "upstream" : [ ],
     "url" : "https://github.com/jolt-lang/time",
-    "waves" : [ [ "jlt-commons/aws-api-jolt", "jlt-commons/ci-builds", "jlt-commons/docs-engine", "jlt-commons/dodeca", "jlt-commons/glitter-core", "jlt-commons/jolt-kimi-plugin", "jlt-commons/lev", "jlt-commons/yyjson-jolt", "jolt-lang/db", "jolt-lang/glimmer-datastar", "jolt-lang/otel", "jolt-lang/transit-jolt" ], [ "jlt-commons/duratom", "jlt-commons/glitter", "jlt-commons/glitter-uikit", "jlt-commons/overseer" ], [ "jlt-commons/glitter-gl", "jlt-commons/uikit-demo" ] ]
+    "waves" : [ [ "jlt-commons/aws-api-jolt", "jlt-commons/ci-builds", "jlt-commons/docs-engine", "jlt-commons/dodeca", "jlt-commons/glitter-core", "jlt-commons/jolt-kimi-plugin", "jlt-commons/lev", "jlt-commons/yyjson-jolt", "jolt-lang/db", "jolt-lang/glimmer-datastar", "jolt-lang/otel", "jolt-lang/transit-jolt" ], [ "jlt-commons/duratom", "jlt-commons/glitter", "jlt-commons/glitter-uikit", "jlt-commons/overseer", "jolt-lang/glimmer-datastar-client" ], [ "jlt-commons/glitter-gl", "jlt-commons/uikit-demo" ] ]
   }, {
     "cycle" : [ ],
     "default_branch" : "main",
