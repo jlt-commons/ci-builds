@@ -1,6 +1,6 @@
 {
-  "canary_run" : "https://github.com/jlt-commons/ci-builds/actions/runs/45329418593",
-  "generated_at" : "2026-11-24T04:53:19Z",
+  "canary_run" : "https://github.com/jlt-commons/ci-builds/actions/runs/45429083891",
+  "generated_at" : "2026-11-24T15:45:39Z",
   "jolt" : {
     "latest" : {
       "version" : "0.8.29"
