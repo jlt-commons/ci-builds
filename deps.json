@@ -1224,7 +1224,7 @@
     "state" : "current",
     "to" : "jlt-commons/docs-engine"
   } ],
-  "generated_at" : "2026-11-24T04:57:02Z",
+  "generated_at" : "2026-11-25T01:02:09Z",
   "libraries" : [ {
     "cycle" : [ ],
     "default_branch" : "main",
@@ -1264,7 +1264,7 @@
     "has_deps" : false,
     "id" : "jlt-commons/awesome-jolt",
     "latest" : {
-      "sha" : "bb92992ea6feb43d3eb83601eb5bba404d2ac438",
+      "sha" : "455436913c59bd8817ef4c32195ccdc5b65def9f",
       "tag" : null
     },
     "name" : "awesome-jolt",
@@ -2272,7 +2272,7 @@
     "has_deps" : false,
     "id" : "jolt-lang/homebrew-jolt",
     "latest" : {
-      "sha" : "9e122a8d73b33e28ec332dca0b4f2177f091bc6b",
+      "sha" : "5b45323ecea53ff3e7cd29e9e4105532fd317158",
       "tag" : null
     },
     "name" : "homebrew-jolt",
@@ -2304,8 +2304,8 @@
     "has_deps" : false,
     "id" : "jolt-lang/jolt",
     "latest" : {
-      "sha" : "5ec7e4c5454ffcf53eb987cbdf4d82b80f176e22",
-      "tag" : "v0.8.29"
+      "sha" : "f6ed60a335960dc0657f7f98457b01426ae4cf90",
+      "tag" : "v0.8.30"
     },
     "name" : "jolt",
     "org" : "jolt-lang",
@@ -2352,7 +2352,7 @@
     "has_deps" : false,
     "id" : "jolt-lang/jolt-lang.github.io",
     "latest" : {
-      "sha" : "b295c3d2f23a3780fb24446c86cab77eae4e77c1",
+      "sha" : "6c785f916ac61d13cca47b79691d94989a554e6d",
       "tag" : null
     },
     "name" : "jolt-lang.github.io",
