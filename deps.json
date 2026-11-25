@@ -922,10 +922,10 @@
       "ref" : null,
       "resolved" : "v0.10.1",
       "sha" : "387cf67ea7b6a8573c6ee6abca6026a45bc3b6bf",
-      "state" : "current",
+      "state" : "behind",
       "tag" : null
     } ],
-    "state" : "current",
+    "state" : "behind",
     "to" : "jlt-commons/docs-engine"
   }, {
     "dep" : "jolt-lang/ring-chez-adapter",
@@ -964,7 +964,7 @@
       "ref" : null,
       "resolved" : "v0.10.1",
       "sha" : "387cf67ea7b6a8573c6ee6abca6026a45bc3b6bf",
-      "state" : "current",
+      "state" : "behind",
       "tag" : "v0.10.1"
     }, {
       "dep" : "jolt-lang/ring-chez-adapter",
@@ -972,10 +972,10 @@
       "ref" : null,
       "resolved" : "v0.10.1",
       "sha" : "387cf67ea7b6a8573c6ee6abca6026a45bc3b6bf",
-      "state" : "current",
+      "state" : "behind",
       "tag" : "v0.10.1"
     } ],
-    "state" : "current",
+    "state" : "behind",
     "to" : "jolt-lang/glimmer-datastar-client"
   }, {
     "dep" : "jolt-lang/time",
@@ -1224,7 +1224,7 @@
     "state" : "current",
     "to" : "jlt-commons/docs-engine"
   } ],
-  "generated_at" : "2026-11-25T01:02:09Z",
+  "generated_at" : "2026-11-25T20:08:46Z",
   "libraries" : [ {
     "cycle" : [ ],
     "default_branch" : "main",
@@ -2448,8 +2448,8 @@
     "has_deps" : true,
     "id" : "jolt-lang/ring-chez-adapter",
     "latest" : {
-      "sha" : "387cf67ea7b6a8573c6ee6abca6026a45bc3b6bf",
-      "tag" : "v0.10.1"
+      "sha" : "83938a69a098bc92046b3e65e74335947e93bc04",
+      "tag" : "v0.11.1"
     },
     "name" : "ring-chez-adapter",
     "org" : "jolt-lang",
