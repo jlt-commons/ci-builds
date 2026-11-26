@@ -402,10 +402,10 @@
       "ref" : null,
       "resolved" : "v0.2.1",
       "sha" : "b9c64853243750ee65815144adfb69cc7ccacfe8",
-      "state" : "current",
+      "state" : "behind",
       "tag" : "v0.2.1"
     } ],
-    "state" : "current",
+    "state" : "behind",
     "to" : "jolt-lang/ring-chez-adapter"
   }, {
     "dep" : "io.github.jolt-lang/db",
@@ -1224,7 +1224,7 @@
     "state" : "current",
     "to" : "jlt-commons/docs-engine"
   } ],
-  "generated_at" : "2026-11-26T03:02:30Z",
+  "generated_at" : "2026-11-26T13:05:43Z",
   "libraries" : [ {
     "cycle" : [ ],
     "default_branch" : "main",
@@ -1648,8 +1648,8 @@
     "has_deps" : true,
     "id" : "jlt-commons/jolt-metrics",
     "latest" : {
-      "sha" : "8a7654624cd88155306dfd95985b54e1799c438e",
-      "tag" : "v0.8.1"
+      "sha" : "8333fa0faac6776276a043791ea13a64d9c35757",
+      "tag" : "v0.8.2"
     },
     "name" : "jolt-metrics",
     "org" : "jlt-commons",
@@ -2032,8 +2032,8 @@
     "has_deps" : true,
     "id" : "jolt-lang/crypto",
     "latest" : {
-      "sha" : "b9c64853243750ee65815144adfb69cc7ccacfe8",
-      "tag" : "v0.2.1"
+      "sha" : "fc0b7ca8302196be68f42e388e133b3b2e43ca6c",
+      "tag" : "v0.3.0"
     },
     "name" : "crypto",
     "org" : "jolt-lang",
