@@ -8,7 +8,7 @@
          io.github.jolt-lang/yaml        {:git/url "https://github.com/jolt-lang/yaml.git"
                                           :git/sha "ecbeb028bd319cbcccce6de83eca8eae5fedc7f4"}
          io.github.jolt-lang/time        {:git/url "https://github.com/jolt-lang/time.git"
-                                          :git/sha "6c12a58d08586ca60421099d2d3d0bcd473238ac"}}
+                                          :git/sha "5104b050e331ff4fadd7488c958bf121ca5c91d9"}}
 
  :tasks {test {:doc "Run every fleet.*-test namespace; exit 1 on any failure or error"
                :requires ([clojure.test :as t]
