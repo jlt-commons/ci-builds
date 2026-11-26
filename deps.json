@@ -132,12 +132,12 @@
       "dep" : "io.github.jlt-commons/jolt-lsp",
       "path" : [ "deps" ],
       "ref" : null,
-      "resolved" : "v0.2.1",
-      "sha" : "3c47a5be833c8263a132466ce53eb87e9f62415e",
-      "state" : "behind",
-      "tag" : "v0.2.1"
+      "resolved" : "v0.6.1",
+      "sha" : "86f85aa8ce7c88456fb8d13bf1bfc843260faea4",
+      "state" : "current",
+      "tag" : "v0.6.1"
     } ],
-    "state" : "behind",
+    "state" : "current",
     "to" : "jlt-commons/jolt-metrics"
   }, {
     "dep" : "io.github.jlt-commons/jolt-lsp",
@@ -162,10 +162,10 @@
       "ref" : null,
       "resolved" : "v0.7.1",
       "sha" : "d134ab131364170c1b3171443e848f13e6db7638",
-      "state" : "current",
+      "state" : "behind",
       "tag" : "v0.7.1"
     } ],
-    "state" : "current",
+    "state" : "behind",
     "to" : "jlt-commons/overseer"
   }, {
     "dep" : "jlt-commons/jolt-metrics",
@@ -176,10 +176,10 @@
       "ref" : null,
       "resolved" : "v0.7.1",
       "sha" : "d134ab131364170c1b3171443e848f13e6db7638",
-      "state" : "current",
+      "state" : "behind",
       "tag" : "v0.7.1"
     } ],
-    "state" : "current",
+    "state" : "behind",
     "to" : "jlt-commons/upbge-jolt"
   }, {
     "dep" : "io.github.jlt-commons/lev",
@@ -316,12 +316,12 @@
       "dep" : "io.github.jlt-commons/writ",
       "path" : [ "aliases", "test", "extra-deps" ],
       "ref" : null,
-      "resolved" : "v0.1.14",
-      "sha" : "11ea31dfd4f261332df3b227c37c962e30eefb4e",
-      "state" : "behind",
-      "tag" : null
+      "resolved" : "v0.1.16",
+      "sha" : "4619c7a8144b4214072f47a5cec1f15579acabe7",
+      "state" : "current",
+      "tag" : "v0.1.16"
     } ],
-    "state" : "behind",
+    "state" : "current",
     "to" : "jlt-commons/jolt-metrics"
   }, {
     "dep" : "io.github.jlt-commons/writ",
@@ -1224,7 +1224,7 @@
     "state" : "current",
     "to" : "jlt-commons/docs-engine"
   } ],
-  "generated_at" : "2026-11-25T20:08:46Z",
+  "generated_at" : "2026-11-26T03:02:30Z",
   "libraries" : [ {
     "cycle" : [ ],
     "default_branch" : "main",
@@ -1632,8 +1632,8 @@
     "has_deps" : true,
     "id" : "jlt-commons/jolt-lsp",
     "latest" : {
-      "sha" : "70253ddb98298207e1d7fe844ddc305f471bccb0",
-      "tag" : "v0.6.0"
+      "sha" : "86f85aa8ce7c88456fb8d13bf1bfc843260faea4",
+      "tag" : "v0.6.1"
     },
     "name" : "jolt-lsp",
     "org" : "jlt-commons",
@@ -1648,8 +1648,8 @@
     "has_deps" : true,
     "id" : "jlt-commons/jolt-metrics",
     "latest" : {
-      "sha" : "d134ab131364170c1b3171443e848f13e6db7638",
-      "tag" : "v0.7.1"
+      "sha" : "8a7654624cd88155306dfd95985b54e1799c438e",
+      "tag" : "v0.8.1"
     },
     "name" : "jolt-metrics",
     "org" : "jlt-commons",
@@ -1712,7 +1712,7 @@
     "has_deps" : false,
     "id" : "jlt-commons/jolt-skills",
     "latest" : {
-      "sha" : "80416aacff4bdf6f6aa9aac71007cc569df02489",
+      "sha" : "ae2c470fde654209b3fbcb411a366ca48c0fe4e5",
       "tag" : null
     },
     "name" : "jolt-skills",
@@ -1984,8 +1984,8 @@
     "has_deps" : true,
     "id" : "jlt-commons/writ",
     "latest" : {
-      "sha" : "59a94ee536a046bd73f670bebfbea3dadbcd9913",
-      "tag" : "v0.1.15"
+      "sha" : "4619c7a8144b4214072f47a5cec1f15579acabe7",
+      "tag" : "v0.1.16"
     },
     "name" : "writ",
     "org" : "jlt-commons",
