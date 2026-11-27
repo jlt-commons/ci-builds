@@ -182,6 +182,20 @@
     "state" : "behind",
     "to" : "jlt-commons/upbge-jolt"
   }, {
+    "dep" : "io.github.jlt-commons/jolt-metrics",
+    "from" : "jlt-commons/jolt-metrics",
+    "pins" : [ {
+      "dep" : "io.github.jlt-commons/jolt-metrics",
+      "path" : [ "aliases", "metrics", "extra-deps" ],
+      "ref" : null,
+      "resolved" : "v0.8.2",
+      "sha" : "8333fa0faac6776276a043791ea13a64d9c35757",
+      "state" : "current",
+      "tag" : "v0.8.2"
+    } ],
+    "state" : "current",
+    "to" : "jolt-lang/crypto"
+  }, {
     "dep" : "io.github.jlt-commons/lev",
     "from" : "jlt-commons/lev",
     "pins" : [ {
@@ -718,10 +732,10 @@
       "ref" : null,
       "resolved" : "v0.1.10",
       "sha" : "bf1485ebd44b798d96306913ad800e76a9f58957",
-      "state" : "current",
+      "state" : "behind",
       "tag" : "v0.1.10"
     } ],
-    "state" : "current",
+    "state" : "behind",
     "to" : "jolt-lang/glimmer-datastar-client"
   }, {
     "dep" : "jolt-lang/http-client",
@@ -1224,7 +1238,7 @@
     "state" : "current",
     "to" : "jlt-commons/docs-engine"
   } ],
-  "generated_at" : "2026-11-27T14:16:07Z",
+  "generated_at" : "2026-11-27T22:54:37Z",
   "libraries" : [ {
     "cycle" : [ ],
     "default_branch" : "main",
@@ -1286,7 +1300,7 @@
     "name" : "aws-api-jolt",
     "org" : "jlt-commons",
     "unreadable" : false,
-    "upstream" : [ "jolt-lang/crypto", "jolt-lang/http-client", "jolt-lang/logging", "jolt-lang/multipart", "jolt-lang/time", "jolt-lang/xml" ],
+    "upstream" : [ "jlt-commons/jolt-lsp", "jlt-commons/jolt-metrics", "jlt-commons/writ", "jolt-lang/crypto", "jolt-lang/http-client", "jolt-lang/logging", "jolt-lang/multipart", "jolt-lang/time", "jolt-lang/xml" ],
     "url" : "https://github.com/jlt-commons/aws-api-jolt",
     "waves" : [ ]
   }, {
@@ -1318,7 +1332,7 @@
     "name" : "ci-builds",
     "org" : "jlt-commons",
     "unreadable" : false,
-    "upstream" : [ "jolt-lang/crypto", "jolt-lang/http-client", "jolt-lang/multipart", "jolt-lang/time", "jolt-lang/yaml" ],
+    "upstream" : [ "jlt-commons/jolt-lsp", "jlt-commons/jolt-metrics", "jlt-commons/writ", "jolt-lang/crypto", "jolt-lang/http-client", "jolt-lang/multipart", "jolt-lang/time", "jolt-lang/yaml" ],
     "url" : "https://github.com/jlt-commons/ci-builds",
     "waves" : [ ]
   }, {
@@ -1366,7 +1380,7 @@
     "name" : "docs-engine",
     "org" : "jlt-commons",
     "unreadable" : false,
-    "upstream" : [ "jolt-lang/crypto", "jolt-lang/http-client", "jolt-lang/multipart", "jolt-lang/ring-chez-adapter", "jolt-lang/time", "jolt-lang/yaml" ],
+    "upstream" : [ "jlt-commons/jolt-lsp", "jlt-commons/jolt-metrics", "jlt-commons/writ", "jolt-lang/crypto", "jolt-lang/http-client", "jolt-lang/multipart", "jolt-lang/ring-chez-adapter", "jolt-lang/time", "jolt-lang/yaml" ],
     "url" : "https://github.com/jlt-commons/docs-engine",
     "waves" : [ ]
   }, {
@@ -1640,7 +1654,7 @@
     "unreadable" : false,
     "upstream" : [ "jlt-commons/writ" ],
     "url" : "https://github.com/jlt-commons/jolt-lsp",
-    "waves" : [ [ "jlt-commons/jolt-metrics", "jlt-commons/jolt-nrepl-mcp" ], [ "jlt-commons/overseer", "jlt-commons/upbge-jolt" ] ]
+    "waves" : [ [ "jlt-commons/jolt-metrics", "jlt-commons/jolt-nrepl-mcp" ], [ "jlt-commons/upbge-jolt", "jolt-lang/crypto" ], [ "jolt-lang/http-client" ], [ "jlt-commons/aws-api-jolt", "jlt-commons/ci-builds", "jlt-commons/uikit-demo", "jolt-lang/otel", "jolt-lang/ring-chez-adapter" ], [ "jlt-commons/docs-engine", "jlt-commons/lev", "jolt-lang/glimmer-datastar-client" ], [ "jlt-commons/overseer" ] ]
   }, {
     "cycle" : [ ],
     "default_branch" : "main",
@@ -1656,7 +1670,7 @@
     "unreadable" : false,
     "upstream" : [ "jlt-commons/jolt-lsp", "jlt-commons/writ" ],
     "url" : "https://github.com/jlt-commons/jolt-metrics",
-    "waves" : [ [ "jlt-commons/overseer", "jlt-commons/upbge-jolt" ] ]
+    "waves" : [ [ "jlt-commons/upbge-jolt", "jolt-lang/crypto" ], [ "jolt-lang/http-client" ], [ "jlt-commons/aws-api-jolt", "jlt-commons/ci-builds", "jlt-commons/uikit-demo", "jolt-lang/otel", "jolt-lang/ring-chez-adapter" ], [ "jlt-commons/docs-engine", "jlt-commons/lev", "jolt-lang/glimmer-datastar-client" ], [ "jlt-commons/overseer" ] ]
   }, {
     "cycle" : [ ],
     "default_branch" : "main",
@@ -1712,7 +1726,7 @@
     "has_deps" : false,
     "id" : "jlt-commons/jolt-skills",
     "latest" : {
-      "sha" : "ae2c470fde654209b3fbcb411a366ca48c0fe4e5",
+      "sha" : "355e179d9df595a442c41e1e1dfd235b0455ed27",
       "tag" : null
     },
     "name" : "jolt-skills",
@@ -1734,7 +1748,7 @@
     "name" : "lev",
     "org" : "jlt-commons",
     "unreadable" : false,
-    "upstream" : [ "jolt-lang/crypto", "jolt-lang/http-client", "jolt-lang/multipart", "jolt-lang/ring-chez-adapter", "jolt-lang/time" ],
+    "upstream" : [ "jlt-commons/jolt-lsp", "jlt-commons/jolt-metrics", "jlt-commons/writ", "jolt-lang/crypto", "jolt-lang/http-client", "jolt-lang/multipart", "jolt-lang/ring-chez-adapter", "jolt-lang/time" ],
     "url" : "https://github.com/jlt-commons/lev",
     "waves" : [ [ "jlt-commons/overseer" ] ]
   }, {
@@ -1958,7 +1972,7 @@
     "name" : "uikit-demo",
     "org" : "jlt-commons",
     "unreadable" : false,
-    "upstream" : [ "jlt-commons/glitter-core", "jlt-commons/glitter-uikit", "jlt-commons/nexus-jolt", "jolt-lang/crypto", "jolt-lang/http-client", "jolt-lang/logging", "jolt-lang/multipart", "jolt-lang/time" ],
+    "upstream" : [ "jlt-commons/glitter-core", "jlt-commons/glitter-uikit", "jlt-commons/jolt-lsp", "jlt-commons/jolt-metrics", "jlt-commons/nexus-jolt", "jlt-commons/writ", "jolt-lang/crypto", "jolt-lang/http-client", "jolt-lang/logging", "jolt-lang/multipart", "jolt-lang/time" ],
     "url" : "https://github.com/jlt-commons/uikit-demo",
     "waves" : [ ]
   }, {
@@ -1992,7 +2006,7 @@
     "unreadable" : false,
     "upstream" : [ ],
     "url" : "https://github.com/jlt-commons/writ",
-    "waves" : [ [ "jlt-commons/dodeca", "jlt-commons/ensemble", "jlt-commons/graviton", "jlt-commons/jolt-lsp" ], [ "jlt-commons/jolt-metrics", "jlt-commons/jolt-nrepl-mcp" ], [ "jlt-commons/overseer", "jlt-commons/upbge-jolt" ] ]
+    "waves" : [ [ "jlt-commons/dodeca", "jlt-commons/ensemble", "jlt-commons/graviton", "jlt-commons/jolt-lsp" ], [ "jlt-commons/jolt-metrics", "jlt-commons/jolt-nrepl-mcp" ], [ "jlt-commons/upbge-jolt", "jolt-lang/crypto" ], [ "jolt-lang/http-client" ], [ "jlt-commons/aws-api-jolt", "jlt-commons/ci-builds", "jlt-commons/uikit-demo", "jolt-lang/otel", "jolt-lang/ring-chez-adapter" ], [ "jlt-commons/docs-engine", "jlt-commons/lev", "jolt-lang/glimmer-datastar-client" ], [ "jlt-commons/overseer" ] ]
   }, {
     "cycle" : [ ],
     "default_branch" : "main",
@@ -2032,13 +2046,13 @@
     "has_deps" : true,
     "id" : "jolt-lang/crypto",
     "latest" : {
-      "sha" : "7305d8f51054a12d4eed46e860b6f131df3d7a97",
-      "tag" : "v0.4.1"
+      "sha" : "dc745811565db9e7d1f0b19a5451f00795162192",
+      "tag" : "v0.4.2"
     },
     "name" : "crypto",
     "org" : "jolt-lang",
     "unreadable" : false,
-    "upstream" : [ ],
+    "upstream" : [ "jlt-commons/jolt-lsp", "jlt-commons/jolt-metrics", "jlt-commons/writ" ],
     "url" : "https://github.com/jolt-lang/crypto",
     "waves" : [ [ "jolt-lang/http-client" ], [ "jlt-commons/aws-api-jolt", "jlt-commons/ci-builds", "jlt-commons/uikit-demo", "jolt-lang/otel", "jolt-lang/ring-chez-adapter" ], [ "jlt-commons/docs-engine", "jlt-commons/lev", "jolt-lang/glimmer-datastar-client" ], [ "jlt-commons/overseer" ] ]
   }, {
@@ -2182,7 +2196,7 @@
     "name" : "glimmer-datastar-client",
     "org" : "jolt-lang",
     "unreadable" : false,
-    "upstream" : [ "jolt-lang/crypto", "jolt-lang/glimmer", "jolt-lang/glimmer-datastar", "jolt-lang/glimmer-gtk", "jolt-lang/glimmer-tui", "jolt-lang/http-client", "jolt-lang/multipart", "jolt-lang/ring-chez-adapter", "jolt-lang/time" ],
+    "upstream" : [ "jlt-commons/jolt-lsp", "jlt-commons/jolt-metrics", "jlt-commons/writ", "jolt-lang/crypto", "jolt-lang/glimmer", "jolt-lang/glimmer-datastar", "jolt-lang/glimmer-gtk", "jolt-lang/glimmer-tui", "jolt-lang/http-client", "jolt-lang/multipart", "jolt-lang/ring-chez-adapter", "jolt-lang/time" ],
     "url" : "https://github.com/jolt-lang/glimmer-datastar-client",
     "waves" : [ ]
   }, {
@@ -2272,7 +2286,7 @@
     "has_deps" : false,
     "id" : "jolt-lang/homebrew-jolt",
     "latest" : {
-      "sha" : "5b45323ecea53ff3e7cd29e9e4105532fd317158",
+      "sha" : "2751522983d63a84f990924c74ecc3bedd9ae6ff",
       "tag" : null
     },
     "name" : "homebrew-jolt",
@@ -2288,13 +2302,13 @@
     "has_deps" : true,
     "id" : "jolt-lang/http-client",
     "latest" : {
-      "sha" : "bf1485ebd44b798d96306913ad800e76a9f58957",
-      "tag" : "v0.1.10"
+      "sha" : "abd09192607fa5867e6bf5aae0dc50a39f0e790e",
+      "tag" : "v0.1.11"
     },
     "name" : "http-client",
     "org" : "jolt-lang",
     "unreadable" : false,
-    "upstream" : [ "jolt-lang/crypto", "jolt-lang/multipart" ],
+    "upstream" : [ "jlt-commons/jolt-lsp", "jlt-commons/jolt-metrics", "jlt-commons/writ", "jolt-lang/crypto", "jolt-lang/multipart" ],
     "url" : "https://github.com/jolt-lang/http-client",
     "waves" : [ [ "jlt-commons/aws-api-jolt", "jlt-commons/ci-builds", "jlt-commons/uikit-demo", "jolt-lang/otel", "jolt-lang/ring-chez-adapter" ], [ "jlt-commons/docs-engine", "jlt-commons/lev", "jolt-lang/glimmer-datastar-client" ], [ "jlt-commons/overseer" ] ]
   }, {
@@ -2352,7 +2366,7 @@
     "has_deps" : false,
     "id" : "jolt-lang/jolt-lang.github.io",
     "latest" : {
-      "sha" : "5a7ae04b533ea8f0c958f2a9d01109a01f30cc88",
+      "sha" : "a240576e55ca60da6491a0fcd07a86da23be3cb3",
       "tag" : null
     },
     "name" : "jolt-lang.github.io",
@@ -2422,7 +2436,7 @@
     "name" : "otel",
     "org" : "jolt-lang",
     "unreadable" : false,
-    "upstream" : [ "jolt-lang/crypto", "jolt-lang/http-client", "jolt-lang/logging", "jolt-lang/multipart", "jolt-lang/time" ],
+    "upstream" : [ "jlt-commons/jolt-lsp", "jlt-commons/jolt-metrics", "jlt-commons/writ", "jolt-lang/crypto", "jolt-lang/http-client", "jolt-lang/logging", "jolt-lang/multipart", "jolt-lang/time" ],
     "url" : "https://github.com/jolt-lang/otel",
     "waves" : [ ]
   }, {
@@ -2454,7 +2468,7 @@
     "name" : "ring-chez-adapter",
     "org" : "jolt-lang",
     "unreadable" : false,
-    "upstream" : [ "jolt-lang/crypto", "jolt-lang/http-client", "jolt-lang/multipart" ],
+    "upstream" : [ "jlt-commons/jolt-lsp", "jlt-commons/jolt-metrics", "jlt-commons/writ", "jolt-lang/crypto", "jolt-lang/http-client", "jolt-lang/multipart" ],
     "url" : "https://github.com/jolt-lang/ring-chez-adapter",
     "waves" : [ [ "jlt-commons/docs-engine", "jlt-commons/lev", "jolt-lang/glimmer-datastar-client" ], [ "jlt-commons/overseer" ] ]
   }, {
