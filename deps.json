@@ -188,12 +188,12 @@
       "dep" : "io.github.jlt-commons/lev",
       "path" : [ "deps" ],
       "ref" : null,
-      "resolved" : "v0.3.7",
-      "sha" : "3b9ade2a66bd5f5fbdc39c942c2fca30421c7427",
-      "state" : "behind",
-      "tag" : "v0.3.7"
+      "resolved" : "v0.3.9",
+      "sha" : "5018cb7cf19b8f1ebabe1a0d74e770c0f6102ff7",
+      "state" : "current",
+      "tag" : "v0.3.9"
     } ],
-    "state" : "behind",
+    "state" : "current",
     "to" : "jlt-commons/overseer"
   }, {
     "dep" : "io.github.jlt-commons/nexus-jolt",
@@ -414,8 +414,8 @@
       "dep" : "io.github.jolt-lang/db",
       "path" : [ "deps" ],
       "ref" : null,
-      "resolved" : "v0.4.12",
-      "sha" : "ed872fabd76746c3a891e96665c874bf03f369d1",
+      "resolved" : "v0.4.13",
+      "sha" : "8a8041b5f8f2c1f15bc93b96ed882cf47eb6acb0",
       "state" : "current",
       "tag" : null
     } ],
@@ -596,18 +596,18 @@
       "dep" : "jolt-lang/glimmer-datastar",
       "path" : [ "aliases", "test", "extra-deps" ],
       "ref" : null,
-      "resolved" : "v0.1.12",
-      "sha" : "1ee12aaaf587c5fae22cb94747fe280c20e3380b",
+      "resolved" : "v0.1.13",
+      "sha" : "52a3d441e8aee222fc393e8cbf43eeb354dde0ec",
       "state" : "current",
-      "tag" : "v0.1.12"
+      "tag" : "v0.1.13"
     }, {
       "dep" : "jolt-lang/glimmer-datastar",
       "path" : [ "aliases", "examples", "extra-deps" ],
       "ref" : null,
-      "resolved" : "v0.1.12",
-      "sha" : "1ee12aaaf587c5fae22cb94747fe280c20e3380b",
+      "resolved" : "v0.1.13",
+      "sha" : "52a3d441e8aee222fc393e8cbf43eeb354dde0ec",
       "state" : "current",
-      "tag" : "v0.1.12"
+      "tag" : "v0.1.13"
     } ],
     "state" : "current",
     "to" : "jolt-lang/glimmer-datastar-client"
@@ -934,12 +934,12 @@
       "dep" : "jolt-lang/ring-chez-adapter",
       "path" : [ "deps" ],
       "ref" : null,
-      "resolved" : "v0.9.1",
-      "sha" : "018763879ac41135ca74cd22caf9acfb20ae55b4",
-      "state" : "behind",
-      "tag" : "v0.9.1"
+      "resolved" : "v0.11.1",
+      "sha" : "83938a69a098bc92046b3e65e74335947e93bc04",
+      "state" : "current",
+      "tag" : "v0.11.1"
     } ],
-    "state" : "behind",
+    "state" : "current",
     "to" : "jlt-commons/lev"
   }, {
     "dep" : "jolt-lang/ring-chez-adapter",
@@ -984,12 +984,12 @@
       "dep" : "jolt-lang/time",
       "path" : [ "deps" ],
       "ref" : null,
-      "resolved" : null,
-      "sha" : "8030de28d6cda6096896c3e653babdbc8105499c",
-      "state" : "behind",
+      "resolved" : "v0.0.19",
+      "sha" : "5104b050e331ff4fadd7488c958bf121ca5c91d9",
+      "state" : "current",
       "tag" : null
     } ],
-    "state" : "behind",
+    "state" : "current",
     "to" : "jlt-commons/aws-api-jolt"
   }, {
     "dep" : "io.github.jolt-lang/time",
@@ -998,8 +998,8 @@
       "dep" : "io.github.jolt-lang/time",
       "path" : [ "deps" ],
       "ref" : null,
-      "resolved" : null,
-      "sha" : "6c12a58d08586ca60421099d2d3d0bcd473238ac",
+      "resolved" : "v0.0.19",
+      "sha" : "5104b050e331ff4fadd7488c958bf121ca5c91d9",
       "state" : "current",
       "tag" : null
     } ],
@@ -1012,12 +1012,12 @@
       "dep" : "io.github.jolt-lang/time",
       "path" : [ "deps" ],
       "ref" : null,
-      "resolved" : null,
-      "sha" : "cdd785069e0e08a16c1ea9aae60f9532de21fad8",
-      "state" : "behind",
+      "resolved" : "v0.0.19",
+      "sha" : "5104b050e331ff4fadd7488c958bf121ca5c91d9",
+      "state" : "current",
       "tag" : null
     } ],
-    "state" : "behind",
+    "state" : "current",
     "to" : "jlt-commons/docs-engine"
   }, {
     "dep" : "jolt-lang/time",
@@ -1026,20 +1026,20 @@
       "dep" : "jolt-lang/time",
       "path" : [ "aliases", "test", "extra-deps" ],
       "ref" : null,
-      "resolved" : "v0.0.15",
-      "sha" : "80e5fc22d9ddd8ee2f2f525580fbc643d0ecba4c",
-      "state" : "behind",
-      "tag" : "v0.0.15"
+      "resolved" : "v0.0.19",
+      "sha" : "5104b050e331ff4fadd7488c958bf121ca5c91d9",
+      "state" : "current",
+      "tag" : "v0.0.19"
     }, {
       "dep" : "jolt-lang/time",
       "path" : [ "aliases", "writ", "extra-deps" ],
       "ref" : null,
-      "resolved" : "v0.0.15",
-      "sha" : "80e5fc22d9ddd8ee2f2f525580fbc643d0ecba4c",
-      "state" : "behind",
-      "tag" : "v0.0.15"
+      "resolved" : "v0.0.19",
+      "sha" : "5104b050e331ff4fadd7488c958bf121ca5c91d9",
+      "state" : "current",
+      "tag" : "v0.0.19"
     } ],
-    "state" : "behind",
+    "state" : "current",
     "to" : "jlt-commons/dodeca"
   }, {
     "dep" : "io.github.jolt-lang/time",
@@ -1048,8 +1048,8 @@
       "dep" : "io.github.jolt-lang/time",
       "path" : [ "deps" ],
       "ref" : null,
-      "resolved" : "v0.0.18",
-      "sha" : "ec750bbe1f02050389258292bcc35b95b9eca756",
+      "resolved" : "v0.0.19",
+      "sha" : "5104b050e331ff4fadd7488c958bf121ca5c91d9",
       "state" : "current",
       "tag" : null
     } ],
@@ -1062,12 +1062,12 @@
       "dep" : "io.github.jolt-lang/time",
       "path" : [ "deps" ],
       "ref" : null,
-      "resolved" : "v0.0.15",
-      "sha" : "80e5fc22d9ddd8ee2f2f525580fbc643d0ecba4c",
-      "state" : "behind",
+      "resolved" : "v0.0.19",
+      "sha" : "5104b050e331ff4fadd7488c958bf121ca5c91d9",
+      "state" : "current",
       "tag" : null
     } ],
-    "state" : "behind",
+    "state" : "current",
     "to" : "jlt-commons/glitter-core"
   }, {
     "dep" : "jolt-lang/time",
@@ -1076,12 +1076,12 @@
       "dep" : "jolt-lang/time",
       "path" : [ "deps" ],
       "ref" : null,
-      "resolved" : "v0.0.15",
-      "sha" : "80e5fc22d9ddd8ee2f2f525580fbc643d0ecba4c",
-      "state" : "behind",
+      "resolved" : "v0.0.19",
+      "sha" : "5104b050e331ff4fadd7488c958bf121ca5c91d9",
+      "state" : "current",
       "tag" : null
     } ],
-    "state" : "behind",
+    "state" : "current",
     "to" : "jlt-commons/jolt-kimi-plugin"
   }, {
     "dep" : "jolt-lang/time",
@@ -1090,10 +1090,10 @@
       "dep" : "jolt-lang/time",
       "path" : [ "deps" ],
       "ref" : null,
-      "resolved" : "v0.0.18",
-      "sha" : "ec750bbe1f02050389258292bcc35b95b9eca756",
+      "resolved" : "v0.0.19",
+      "sha" : "5104b050e331ff4fadd7488c958bf121ca5c91d9",
       "state" : "current",
-      "tag" : "v0.0.18"
+      "tag" : "v0.0.19"
     } ],
     "state" : "current",
     "to" : "jlt-commons/lev"
@@ -1104,12 +1104,12 @@
       "dep" : "io.github.jolt-lang/time",
       "path" : [ "deps" ],
       "ref" : null,
-      "resolved" : "v0.0.15",
-      "sha" : "80e5fc22d9ddd8ee2f2f525580fbc643d0ecba4c",
-      "state" : "behind",
+      "resolved" : "v0.0.19",
+      "sha" : "5104b050e331ff4fadd7488c958bf121ca5c91d9",
+      "state" : "current",
       "tag" : null
     } ],
-    "state" : "behind",
+    "state" : "current",
     "to" : "jlt-commons/uikit-demo"
   }, {
     "dep" : "io.github.jolt-lang/time",
@@ -1118,12 +1118,12 @@
       "dep" : "io.github.jolt-lang/time",
       "path" : [ "aliases", "test", "extra-deps" ],
       "ref" : null,
-      "resolved" : "v0.0.8",
-      "sha" : "33c5e9831c046cfcbe68bc0c9c33e92568eaebb1",
-      "state" : "behind",
+      "resolved" : "v0.0.19",
+      "sha" : "5104b050e331ff4fadd7488c958bf121ca5c91d9",
+      "state" : "current",
       "tag" : null
     } ],
-    "state" : "behind",
+    "state" : "current",
     "to" : "jlt-commons/yyjson-jolt"
   }, {
     "dep" : "io.github.jolt-lang/time",
@@ -1132,8 +1132,8 @@
       "dep" : "io.github.jolt-lang/time",
       "path" : [ "deps" ],
       "ref" : null,
-      "resolved" : "v0.0.18",
-      "sha" : "ec750bbe1f02050389258292bcc35b95b9eca756",
+      "resolved" : "v0.0.19",
+      "sha" : "5104b050e331ff4fadd7488c958bf121ca5c91d9",
       "state" : "current",
       "tag" : null
     } ],
@@ -1146,8 +1146,8 @@
       "dep" : "io.github.jolt-lang/time",
       "path" : [ "deps" ],
       "ref" : null,
-      "resolved" : "v0.0.18",
-      "sha" : "ec750bbe1f02050389258292bcc35b95b9eca756",
+      "resolved" : "v0.0.19",
+      "sha" : "5104b050e331ff4fadd7488c958bf121ca5c91d9",
       "state" : "current",
       "tag" : null
     } ],
@@ -1160,10 +1160,10 @@
       "dep" : "io.github.jolt-lang/time",
       "path" : [ "deps" ],
       "ref" : null,
-      "resolved" : "v0.0.18",
-      "sha" : "ec750bbe1f02050389258292bcc35b95b9eca756",
+      "resolved" : "v0.0.19",
+      "sha" : "5104b050e331ff4fadd7488c958bf121ca5c91d9",
       "state" : "current",
-      "tag" : "v0.0.18"
+      "tag" : "v0.0.19"
     } ],
     "state" : "current",
     "to" : "jolt-lang/otel"
@@ -1174,8 +1174,8 @@
       "dep" : "io.github.jolt-lang/time",
       "path" : [ "deps" ],
       "ref" : null,
-      "resolved" : "v0.0.18",
-      "sha" : "ec750bbe1f02050389258292bcc35b95b9eca756",
+      "resolved" : "v0.0.19",
+      "sha" : "5104b050e331ff4fadd7488c958bf121ca5c91d9",
       "state" : "current",
       "tag" : null
     } ],
@@ -1224,7 +1224,7 @@
     "state" : "current",
     "to" : "jlt-commons/docs-engine"
   } ],
-  "generated_at" : "2026-11-26T13:05:43Z",
+  "generated_at" : "2026-11-27T04:30:01Z",
   "libraries" : [ {
     "cycle" : [ ],
     "default_branch" : "main",
@@ -1264,7 +1264,7 @@
     "has_deps" : false,
     "id" : "jlt-commons/awesome-jolt",
     "latest" : {
-      "sha" : "455436913c59bd8817ef4c32195ccdc5b65def9f",
+      "sha" : "faa9b89c9b637f9eaaee7f15fedf4844b974cf18",
       "tag" : null
     },
     "name" : "awesome-jolt",
@@ -1280,7 +1280,7 @@
     "has_deps" : true,
     "id" : "jlt-commons/aws-api-jolt",
     "latest" : {
-      "sha" : "01a5cace2029511ee8685bec1818e285de2b09f8",
+      "sha" : "365cf75e6b1d142bb6b99d7b5777584789319ef2",
       "tag" : null
     },
     "name" : "aws-api-jolt",
@@ -1312,7 +1312,7 @@
     "has_deps" : true,
     "id" : "jlt-commons/ci-builds",
     "latest" : {
-      "sha" : "db0e9f0e4c5fc22f42bd836ad4a27d1d87ed4ed7",
+      "sha" : "d9260715cf949652d769dcc01792e11ec5af5d52",
       "tag" : null
     },
     "name" : "ci-builds",
@@ -1376,8 +1376,8 @@
     "has_deps" : true,
     "id" : "jlt-commons/dodeca",
     "latest" : {
-      "sha" : "7cf6314d84643ed9eae2a1d6acc6e213b4e9441f",
-      "tag" : "v0.1.2"
+      "sha" : "b5c39b59af1a776996b35aa9829211327446f485",
+      "tag" : "v0.1.3"
     },
     "name" : "dodeca",
     "org" : "jlt-commons",
@@ -1392,8 +1392,8 @@
     "has_deps" : true,
     "id" : "jlt-commons/duratom",
     "latest" : {
-      "sha" : "c8c2396ec7071852e8ee538cae5c8a52c792912a",
-      "tag" : "v0.2.0"
+      "sha" : "3ccc1dbee7658625cf6b63cb0153e4011a4f28e5",
+      "tag" : "v0.2.1"
     },
     "name" : "duratom",
     "org" : "jlt-commons",
@@ -1488,7 +1488,7 @@
     "has_deps" : true,
     "id" : "jlt-commons/glitter",
     "latest" : {
-      "sha" : "b8e25331a894125990358ccde496d6272776bea4",
+      "sha" : "637637cb413700a4022e3de3d9919fd36b807ab6",
       "tag" : null
     },
     "name" : "glitter",
@@ -1504,7 +1504,7 @@
     "has_deps" : true,
     "id" : "jlt-commons/glitter-core",
     "latest" : {
-      "sha" : "90934879f8a815462d35deae651a8c20f512343e",
+      "sha" : "a99d8b728bf12c1bebaa6eb7840e7ec288909001",
       "tag" : null
     },
     "name" : "glitter-core",
@@ -1616,7 +1616,7 @@
     "has_deps" : true,
     "id" : "jlt-commons/jolt-kimi-plugin",
     "latest" : {
-      "sha" : "7a3b42dd121751118064e3083f193d0509dbe29f",
+      "sha" : "0b97c8effea1ddec4db88df30b7e2a25719fe1ac",
       "tag" : null
     },
     "name" : "jolt-kimi-plugin",
@@ -1728,8 +1728,8 @@
     "has_deps" : true,
     "id" : "jlt-commons/lev",
     "latest" : {
-      "sha" : "504fcd5f2f572439ebaa000cd0e314cf6557132f",
-      "tag" : "v0.3.8"
+      "sha" : "5018cb7cf19b8f1ebabe1a0d74e770c0f6102ff7",
+      "tag" : "v0.3.9"
     },
     "name" : "lev",
     "org" : "jlt-commons",
@@ -1792,7 +1792,7 @@
     "has_deps" : true,
     "id" : "jlt-commons/overseer",
     "latest" : {
-      "sha" : "df5548efe26902d66030166945a3b226cd2acf30",
+      "sha" : "c7aca30fe24f5eaa4e4c306781f409e46cba1345",
       "tag" : null
     },
     "name" : "overseer",
@@ -1952,7 +1952,7 @@
     "has_deps" : true,
     "id" : "jlt-commons/uikit-demo",
     "latest" : {
-      "sha" : "12668fc5e800e9c5e1387edd97a8235704c7e544",
+      "sha" : "694921c2f4c674bd324949156604370c4240512b",
       "tag" : null
     },
     "name" : "uikit-demo",
@@ -2000,7 +2000,7 @@
     "has_deps" : true,
     "id" : "jlt-commons/yyjson-jolt",
     "latest" : {
-      "sha" : "e9562890a5f74b1cfd8added087860e7533df605",
+      "sha" : "04e228300d7dacffdd10fd6fac8d7d7dead380f0",
       "tag" : null
     },
     "name" : "yyjson-jolt",
@@ -2048,8 +2048,8 @@
     "has_deps" : true,
     "id" : "jolt-lang/db",
     "latest" : {
-      "sha" : "ed872fabd76746c3a891e96665c874bf03f369d1",
-      "tag" : "v0.4.12"
+      "sha" : "8a8041b5f8f2c1f15bc93b96ed882cf47eb6acb0",
+      "tag" : "v0.4.13"
     },
     "name" : "db",
     "org" : "jolt-lang",
@@ -2160,8 +2160,8 @@
     "has_deps" : true,
     "id" : "jolt-lang/glimmer-datastar",
     "latest" : {
-      "sha" : "1ee12aaaf587c5fae22cb94747fe280c20e3380b",
-      "tag" : "v0.1.12"
+      "sha" : "52a3d441e8aee222fc393e8cbf43eeb354dde0ec",
+      "tag" : "v0.1.13"
     },
     "name" : "glimmer-datastar",
     "org" : "jolt-lang",
@@ -2176,7 +2176,7 @@
     "has_deps" : true,
     "id" : "jolt-lang/glimmer-datastar-client",
     "latest" : {
-      "sha" : "7f671339af05811defd22fb441ac9b61a5eb1adf",
+      "sha" : "2fb6dd7258089d8d7f5392380ab1654735fb3945",
       "tag" : null
     },
     "name" : "glimmer-datastar-client",
@@ -2416,8 +2416,8 @@
     "has_deps" : true,
     "id" : "jolt-lang/otel",
     "latest" : {
-      "sha" : "c7bfc9bafd2c3c3964de598c2c0a9837d2b14c72",
-      "tag" : "v0.3.4"
+      "sha" : "e2661fd55e94633ccd68902c5bd618d0cc1a5818",
+      "tag" : "v0.3.5"
     },
     "name" : "otel",
     "org" : "jolt-lang",
@@ -2480,8 +2480,8 @@
     "has_deps" : true,
     "id" : "jolt-lang/time",
     "latest" : {
-      "sha" : "ec750bbe1f02050389258292bcc35b95b9eca756",
-      "tag" : "v0.0.18"
+      "sha" : "5104b050e331ff4fadd7488c958bf121ca5c91d9",
+      "tag" : "v0.0.19"
     },
     "name" : "time",
     "org" : "jolt-lang",
@@ -2496,8 +2496,8 @@
     "has_deps" : true,
     "id" : "jolt-lang/transit-jolt",
     "latest" : {
-      "sha" : "dd623d0ed07084003ca7d4a10d7a180357fc670c",
-      "tag" : "v0.2.3"
+      "sha" : "79fb0bd0169f230cffe6bf51a2b61456899bd44a",
+      "tag" : "v0.2.4"
     },
     "name" : "transit-jolt",
     "org" : "jolt-lang",
