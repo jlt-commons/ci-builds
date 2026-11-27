@@ -1224,7 +1224,7 @@
     "state" : "current",
     "to" : "jlt-commons/docs-engine"
   } ],
-  "generated_at" : "2026-11-27T04:30:01Z",
+  "generated_at" : "2026-11-27T14:16:07Z",
   "libraries" : [ {
     "cycle" : [ ],
     "default_branch" : "main",
@@ -2032,8 +2032,8 @@
     "has_deps" : true,
     "id" : "jolt-lang/crypto",
     "latest" : {
-      "sha" : "fc0b7ca8302196be68f42e388e133b3b2e43ca6c",
-      "tag" : "v0.3.0"
+      "sha" : "7305d8f51054a12d4eed46e860b6f131df3d7a97",
+      "tag" : "v0.4.1"
     },
     "name" : "crypto",
     "org" : "jolt-lang",
@@ -2304,8 +2304,8 @@
     "has_deps" : false,
     "id" : "jolt-lang/jolt",
     "latest" : {
-      "sha" : "f6ed60a335960dc0657f7f98457b01426ae4cf90",
-      "tag" : "v0.8.30"
+      "sha" : "3f9506266ca422e2d1f1370659289cde88cbbf2a",
+      "tag" : "v0.8.31"
     },
     "name" : "jolt",
     "org" : "jolt-lang",
@@ -2352,7 +2352,7 @@
     "has_deps" : false,
     "id" : "jolt-lang/jolt-lang.github.io",
     "latest" : {
-      "sha" : "6c785f916ac61d13cca47b79691d94989a554e6d",
+      "sha" : "5a7ae04b533ea8f0c958f2a9d01109a01f30cc88",
       "tag" : null
     },
     "name" : "jolt-lang.github.io",
