@@ -1238,7 +1238,7 @@
     "state" : "current",
     "to" : "jlt-commons/docs-engine"
   } ],
-  "generated_at" : "2026-11-28T04:56:07Z",
+  "generated_at" : "2026-11-28T14:28:55Z",
   "libraries" : [ {
     "cycle" : [ ],
     "default_branch" : "main",
@@ -1262,8 +1262,8 @@
     "has_deps" : true,
     "id" : "jlt-commons/augur",
     "latest" : {
-      "sha" : "cd956a15c1ce344bdc249dd4dd23a292e6e73bf1",
-      "tag" : "v0.24.0"
+      "sha" : "f321fce8689ac5bfef0cee89c143945ced4dbad0",
+      "tag" : "v0.25.0"
     },
     "name" : "augur",
     "org" : "jlt-commons",
