@@ -1238,7 +1238,7 @@
     "state" : "current",
     "to" : "jlt-commons/docs-engine"
   } ],
-  "generated_at" : "2026-11-27T22:54:37Z",
+  "generated_at" : "2026-11-28T04:56:07Z",
   "libraries" : [ {
     "cycle" : [ ],
     "default_branch" : "main",
@@ -2046,8 +2046,8 @@
     "has_deps" : true,
     "id" : "jolt-lang/crypto",
     "latest" : {
-      "sha" : "dc745811565db9e7d1f0b19a5451f00795162192",
-      "tag" : "v0.4.2"
+      "sha" : "94b981cd0ece72d959140d105f4964065f27a4c7",
+      "tag" : "v0.5.0"
     },
     "name" : "crypto",
     "org" : "jolt-lang",
